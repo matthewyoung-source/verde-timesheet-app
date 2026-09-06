@@ -5,10 +5,18 @@
   <h2>Log in</h2>
   <form method="POST">
     <label>Email</label>
-    <input type="email" name="email" required autofocus>
+    <input type="email" name="email" required autofocus autocapitalize="off" autocorrect="off" spellcheck="false">
     <label>Password</label>
-    <input type="password" name="password" required>
-    <button class="btn" type="submit" style="width:100%;">Log in</button>
+    <input type="password" name="password" id="password" required autocapitalize="off" autocorrect="off" spellcheck="false">
+    <label style="font-weight:normal; margin-top:6px; display:flex; align-items:center; gap:6px;">
+      <input type="checkbox" id="show-password" style="width:auto;"> Show password
+    </label>
+    <button class="btn" type="submit" style="width:100%; margin-top:10px;">Log in</button>
   </form>
 </div>
+<script>
+  document.getElementById('show-password').addEventListener('change', function () {
+    document.getElementById('password').type = this.checked ? 'text' : 'password';
+  });
+</script>
 {% endblock %}
