@@ -69,6 +69,16 @@ def dashboard():
     recent_packets = WeeklyPacket.query.order_by(WeeklyPacket.generated_at.desc()).limit(20).all()
     contractors = User.query.filter_by(role="contractor").order_by(User.name).all()
     xero_connected = xero_integration.is_connected()
+
+    active_contractor_count = User.query.filter_by(role="contractor", active=True).count()
+    active_assignment_count = Assignment.query.filter_by(active=True).count()
+    pending_approval_count = WeeklyPacket.query.filter_by(approval_status="pending").count()
+    hours_this_week = (
+        db.session.query(func.coalesce(func.sum(TimesheetEntry.hours), 0))
+        .filter(TimesheetEntry.work_date >= monday, TimesheetEntry.work_date <= sunday)
+        .scalar()
+    )
+
     return render_template(
         "admin_dashboard.html",
         contractors=contractors,
@@ -76,6 +86,10 @@ def dashboard():
         monday=monday,
         sunday=sunday,
         xero_connected=xero_connected,
+        active_contractor_count=active_contractor_count,
+        active_assignment_count=active_assignment_count,
+        pending_approval_count=pending_approval_count,
+        hours_this_week=hours_this_week,
     )
 
 
