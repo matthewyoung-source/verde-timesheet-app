@@ -27,7 +27,7 @@ TOKEN_URL = "https://identity.xero.com/connect/token"
 CONNECTIONS_URL = "https://api.xero.com/connections"
 INVOICES_URL = "https://api.xero.com/api.xro/2.0/Invoices"
 
-SCOPES = "openid profile email accounting.contacts accounting.transactions offline_access"
+SCOPES = "openid profile email accounting.contacts accounting.invoices offline_access"
 
 
 def is_connected():
