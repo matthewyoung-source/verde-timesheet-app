@@ -49,8 +49,10 @@ services:
         sync: false
       - key: SMTP_USE_TLS
         value: "true"
+      # Gmail's SMTP relay requires this to match (or be a verified "send as"
+      # alias of) the account in SMTP_USERNAME below.
       - key: MAIL_FROM
-        value: no-reply@verdesolutions.co.uk
+        value: matthew.young@verdesolutions.co.uk
       # Used to build absolute links in emails -- update to the real
       # address Render gives the app (same one used for XERO_REDIRECT_URI above).
       - key: APP_BASE_URL
