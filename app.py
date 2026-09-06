@@ -1,5 +1,5 @@
 import os
-from flask import Flask, send_from_directory, abort
+from flask import Flask, send_from_directory, abort, redirect, url_for
 from flask_login import login_required, current_user
 
 from extensions import db, login_manager, scheduler
@@ -30,6 +30,10 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(contractor_bp)
     app.register_blueprint(admin_bp)
+
+    @app.route("/")
+    def index():
+        return redirect(url_for("auth.login"))
 
     @app.route("/uploads/<filename>")
     @login_required
