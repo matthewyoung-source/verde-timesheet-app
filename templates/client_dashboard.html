@@ -26,7 +26,7 @@
     {% elif p.client_approval_status == 'approved' %}
       <p><span class="pill green">You approved this</span>{% if p.client_approval_note %} -- "{{ p.client_approval_note }}"{% endif %}</p>
     {% elif p.client_approval_status == 'disputed' %}
-      <p><span class="pill grey">You disputed this</span>{% if p.client_approval_note %} -- "{{ p.client_approval_note }}"{% endif %}</p>
+      <p><span class="pill critical">You disputed this</span>{% if p.client_approval_note %} -- "{{ p.client_approval_note }}"{% endif %}</p>
     {% endif %}
   </div>
 {% endfor %}

@@ -9,21 +9,21 @@
   {% if packet.approval_status == 'approved' %}
     <p><span class="pill green">Approved &amp; locked</span> on {{ packet.approved_at.strftime('%m/%d/%Y %I:%M %p') }} -- the contractor can no longer edit this week. You still can.</p>
   {% else %}
-    <p><span class="pill grey">Awaiting your approval</span> -- this is where you record the sign-off from your Monday morning call.</p>
+    <p><span class="pill warning">Awaiting your approval</span> -- this is where you record the sign-off from your Monday morning call.</p>
   {% endif %}
 
   {% if packet.client_approval_status == 'pending' %}
-    <p><span class="pill grey">Client sign-off pending</span> -- {{ assignment.client.name }} hasn't responded yet. Doesn't hold up Xero.</p>
+    <p><span class="pill warning">Client sign-off pending</span> -- {{ assignment.client.name }} hasn't responded yet. Doesn't hold up Xero.</p>
   {% elif packet.client_approval_status == 'approved' %}
     <p><span class="pill green">Client approved</span> on {{ packet.client_approved_at.strftime('%m/%d/%Y') if packet.client_approved_at else '' }}{% if packet.client_approval_note %} -- "{{ packet.client_approval_note }}"{% endif %}</p>
   {% elif packet.client_approval_status == 'disputed' %}
-    <p><span class="pill grey">Client disputed</span>{% if packet.client_approval_note %} -- "{{ packet.client_approval_note }}"{% endif %}</p>
+    <p><span class="pill critical">Client disputed</span>{% if packet.client_approval_note %} -- "{{ packet.client_approval_note }}"{% endif %}</p>
   {% endif %}
 
   <p>
     {% if packet.xero_invoice_status == 'draft_created' %}<span class="pill green">Xero draft created</span>
     {% elif packet.xero_invoice_status == 'not_connected' %}<span class="pill grey">Xero not connected</span>
-    {% else %}<span class="pill grey">Xero sync failed</span>{% endif %}
+    {% else %}<span class="pill critical">Xero sync failed</span>{% endif %}
     &middot; <a href="{{ url_for('admin.download_packet', packet_id=packet.id) }}">Download PDF</a>
   </p>
 </div>

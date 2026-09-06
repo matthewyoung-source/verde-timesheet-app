@@ -8,12 +8,12 @@
   <h3>Packet status overview</h3>
   <p>
     <span class="pill green">Approved: {{ status_counts.get('approved', 0) }}</span>
-    <span class="pill grey">Awaiting approval: {{ status_counts.get('pending', 0) }}</span>
+    <span class="pill warning">Awaiting approval: {{ status_counts.get('pending', 0) }}</span>
   </p>
   <p>
-    <span class="pill grey">Client sign-off pending: {{ client_approval_counts.get('pending', 0) }}</span>
+    <span class="pill warning">Client sign-off pending: {{ client_approval_counts.get('pending', 0) }}</span>
     <span class="pill green">Client approved: {{ client_approval_counts.get('approved', 0) }}</span>
-    <span class="pill grey">Client disputed: {{ client_approval_counts.get('disputed', 0) }}</span>
+    <span class="pill critical">Client disputed: {{ client_approval_counts.get('disputed', 0) }}</span>
   </p>
 </div>
 
