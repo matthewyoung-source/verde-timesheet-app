@@ -4,11 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Verde Solutions{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
 </head>
 <body>
   <div class="topbar">
-    <a class="brand" href="{{ url_for('contractor.dashboard') if current_user.is_authenticated and not current_user.is_admin() else url_for('admin.dashboard') if current_user.is_authenticated else url_for('auth.login') }}">Verde Solutions</a>
+    <a class="brand" href="{{ url_for('contractor.dashboard') if current_user.is_authenticated and not current_user.is_admin() else url_for('admin.dashboard') if current_user.is_authenticated else url_for('auth.login') }}">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions">
+    </a>
     <nav>
       {% if current_user.is_authenticated %}
         <span>{{ current_user.name }}</span>
