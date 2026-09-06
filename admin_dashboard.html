@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Admin - Verde Solutions{% endblock %}
+{% block content %}
+<h1>Admin dashboard</h1>
+
+<div class="card">
+  <h3>Xero</h3>
+  {% if xero_connected %}
+    <p><span class="pill green">Connected</span> Draft invoices will be created automatically each Sunday.</p>
+  {% else %}
+    <p><span class="pill grey">Not connected</span> PDFs still generate normally, but no Xero invoice will be created until this is set up.</p>
+    <a class="btn" href="{{ url_for('admin.xero_connect') }}">Connect to Xero</a>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>People &amp; clients</h3>
+  <a class="btn secondary" href="{{ url_for('admin.contractors') }}">Manage contractors &amp; rates</a>
+  <a class="btn secondary" href="{{ url_for('admin.clients') }}">Manage clients</a>
+</div>
+
+<div class="card">
+  <h3>Generated packets (this week: {{ monday.strftime('%b %d') }} - {{ sunday.strftime('%b %d') }})</h3>
+  {% if not recent_packets %}
+    <p class="muted">Nothing generated yet. The job runs automatically every Sunday night.</p>
+  {% else %}
+    <table>
+      <tr><th>Contractor</th><th>Client</th><th>Week of</th><th>Hours</th><th>Expenses</th><th>Xero</th><th></th></tr>
+      {% for p in recent_packets %}
+        <tr>
+          <td>{{ p.assignment.contractor.name }}</td>
+          <td>{{ p.assignment.client.name }}</td>
+          <td>{{ p.week_start.strftime('%m/%d') }}</td>
+          <td>{{ p.total_hours }}</td>
+          <td>${{ '%.2f'|format(p.total_expenses) if p.total_expenses else '0.00' }}</td>
+          <td>
+            {% if p.xero_invoice_status == 'draft_created' %}<span class="pill green">Draft created</span>
+            {% elif p.xero_invoice_status == 'not_connected' %}<span class="pill grey">Not connected</span>
+            {% else %}<span class="pill grey">Failed</span>{% endif %}
+          </td>
+          <td><a href="{{ url_for('admin.download_packet', packet_id=p.id) }}">PDF</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

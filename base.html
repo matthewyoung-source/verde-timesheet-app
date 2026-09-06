@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Verde Solutions{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="{{ url_for('contractor.dashboard') if current_user.is_authenticated and not current_user.is_admin() else url_for('admin.dashboard') if current_user.is_authenticated else url_for('auth.login') }}">Verde Solutions</a>
+    <nav>
+      {% if current_user.is_authenticated %}
+        <span>{{ current_user.name }}</span>
+        <a href="{{ url_for('auth.logout') }}">Log out</a>
+      {% endif %}
+    </nav>
+  </div>
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

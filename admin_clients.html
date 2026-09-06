@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Clients - Verde Solutions{% endblock %}
+{% block content %}
+<a class="muted" href="{{ url_for('admin.dashboard') }}">&larr; Back</a>
+<h1>Clients</h1>
+
+<div class="card">
+  <h3>Add a client</h3>
+  <form method="POST" action="{{ url_for('admin.clients') }}">
+    <label>Client name</label>
+    <input type="text" name="name" required>
+    <label>Billing email (optional)</label>
+    <input type="email" name="billing_email">
+    <button class="btn" type="submit">Add client</button>
+  </form>
+</div>
+
+<div class="card">
+  <table>
+    <tr><th>Name</th><th>Billing email</th></tr>
+    {% for c in clients %}
+      <tr><td>{{ c.name }}</td><td>{{ c.billing_email or '-' }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Add expense - Verde Solutions{% endblock %}
+{% block content %}
+<a class="muted" href="{{ url_for('contractor.dashboard') }}">&larr; Back</a>
+<h1>Add expense</h1>
+<p class="muted">{{ assignment.client.name }} &middot; this week: {{ monday.strftime('%b %d') }} - {{ sunday.strftime('%b %d, %Y') }}</p>
+
+<div class="card">
+  <form method="POST" enctype="multipart/form-data">
+    <label>Receipt photo</label>
+    <input type="file" name="photo" accept="image/*" capture="environment" required>
+
+    <label>Date</label>
+    <input type="date" name="expense_date" value="{{ monday.isoformat() }}" required>
+
+    <label>Description</label>
+    <input type="text" name="description" placeholder="e.g. fuel, parking, materials">
+
+    <label>Amount (leave blank to auto-read from the photo)</label>
+    <input type="number" step="0.01" min="0" name="amount" placeholder="$0.00">
+
+    <button class="btn" type="submit">Submit expense</button>
+  </form>
+</div>
+
+<h2>This week's expenses</h2>
+{% if not week_expenses %}
+  <p class="muted">None submitted yet.</p>
+{% endif %}
+{% for exp in week_expenses %}
+  <div class="card" style="display:flex; gap:14px; align-items:center;">
+    <img class="receipt-thumb" src="{{ url_for('uploaded_file', filename=exp.photo_filename) }}" alt="receipt">
+    <div style="flex:1;">
+      <div>{{ exp.expense_date.strftime('%m/%d/%Y') }} &middot; {{ exp.description or 'Receipt' }}</div>
+      {% if exp.is_amount_confirmed %}
+        <div><span class="pill green">${{ '%.2f'|format(exp.amount) }} confirmed</span></div>
+      {% else %}
+        <form method="POST" action="{{ url_for('contractor.confirm_expense_amount', expense_id=exp.id) }}" style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+          <span class="pill grey">auto-read: ${{ '%.2f'|format(exp.ocr_amount) if exp.ocr_amount else 'unreadable' }}</span>
+          <input type="number" step="0.01" name="amount" value="{{ exp.amount if exp.amount else '' }}" style="width:110px; margin-bottom:0;" required>
+          <button class="btn secondary" type="submit" style="padding:6px 12px;">Confirm</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
