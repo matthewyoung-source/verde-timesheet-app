@@ -1,23 +1,32 @@
 from datetime import datetime, date
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from extensions import db
 
+RESET_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 2  # reset links are good for 2 hours
+
 
 class User(UserMixin, db.Model):
-    """A person who logs in: either role='admin' (Matthew / office staff)
-    or role='contractor' (a placed contractor submitting time & expenses)."""
+    """A person who logs in: role='admin' (Matthew / office staff),
+    role='contractor' (a placed contractor submitting time & expenses),
+    or role='client' (an end client's contact, read-only approval view --
+    see client.py; only meaningful when client_id is set)."""
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(200), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default="contractor")  # 'admin' or 'contractor'
+    role = db.Column(db.String(20), nullable=False, default="contractor")  # 'admin' / 'contractor' / 'client'
     active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Only set for role='client' -- which Client record this login can approve packets for.
+    client_id = db.Column(db.Integer, db.ForeignKey("client.id"), nullable=True)
+
     assignments = db.relationship("Assignment", back_populates="contractor", lazy="dynamic")
+    client = db.relationship("Client", foreign_keys=[client_id])
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -27,6 +36,35 @@ class User(UserMixin, db.Model):
 
     def is_admin(self):
         return self.role == "admin"
+
+    def is_client(self):
+        return self.role == "client"
+
+    def home_endpoint(self):
+        if self.is_admin():
+            return "admin.dashboard"
+        if self.is_client():
+            return "client.dashboard"
+        return "contractor.dashboard"
+
+    def get_reset_token(self, secret_key):
+        """Stateless reset token: signed with the user's id plus a slice of
+        their current password hash, so it stops working the moment the
+        password actually changes (or once naturally expired)."""
+        serializer = URLSafeTimedSerializer(secret_key)
+        return serializer.dumps({"uid": self.id, "sig": self.password_hash[-16:]})
+
+    @staticmethod
+    def verify_reset_token(token, secret_key):
+        serializer = URLSafeTimedSerializer(secret_key)
+        try:
+            data = serializer.loads(token, max_age=RESET_TOKEN_MAX_AGE_SECONDS)
+        except (BadSignature, SignatureExpired):
+            return None
+        user = db.session.get(User, data.get("uid"))
+        if not user or user.password_hash[-16:] != data.get("sig"):
+            return None
+        return user
 
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
@@ -40,6 +78,11 @@ class Client(db.Model):
     xero_contact_id = db.Column(db.String(100), nullable=True)  # links to Xero Contact once connected
     billing_email = db.Column(db.String(200), nullable=True)
     active = db.Column(db.Boolean, default=True, nullable=False)
+
+    # Off by default -- Matthew approves hours himself on a Monday call, so
+    # Verde's own clients don't need this. Built so the app can be resold to
+    # other staffing firms that DO want a client sign-off step recorded.
+    requires_client_approval = db.Column(db.Boolean, default=False, nullable=False)
 
     assignments = db.relationship("Assignment", back_populates="client", lazy="dynamic")
 
@@ -58,6 +101,7 @@ class Assignment(db.Model):
     role_title = db.Column(db.String(150), nullable=True)  # e.g. "Site Electrician"
     active = db.Column(db.Boolean, default=True, nullable=False)
     start_date = db.Column(db.Date, default=date.today)
+    end_date = db.Column(db.Date, nullable=True)  # set when the assignment is ended
 
     contractor = db.relationship("User", back_populates="assignments")
     client = db.relationship("Client", back_populates="assignments")
@@ -135,8 +179,23 @@ class WeeklyPacket(db.Model):
     xero_invoice_id = db.Column(db.String(100), nullable=True)
     xero_invoice_status = db.Column(db.String(30), nullable=True)  # 'not_connected'/'draft_created'/'failed'
 
+    # Matthew's own sign-off (his Monday morning call). Once approved, the
+    # contractor can no longer edit that week's hours/expenses -- only an admin can.
+    approval_status = db.Column(db.String(20), nullable=False, default="pending")  # 'pending'/'approved'
+    approved_at = db.Column(db.DateTime, nullable=True)
+
+    # Optional end-client sign-off (see Client.requires_client_approval). Recorded
+    # for the audit trail only -- it does not hold up the Xero draft invoice.
+    client_approval_status = db.Column(db.String(20), nullable=False, default="not_required")
+    # 'not_required' / 'pending' / 'approved' / 'disputed'
+    client_approved_at = db.Column(db.DateTime, nullable=True)
+    client_approval_note = db.Column(db.String(500), nullable=True)  # e.g. dispute reason
+
     assignment = db.relationship("Assignment")
 
     __table_args__ = (
         db.UniqueConstraint("assignment_id", "week_start", name="uq_assignment_week"),
     )
+
+    def is_locked(self):
+        return self.approval_status == "approved"

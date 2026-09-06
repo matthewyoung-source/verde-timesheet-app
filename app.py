@@ -26,10 +26,12 @@ def create_app(config_class=Config):
     from auth import auth_bp
     from contractor import contractor_bp
     from admin import admin_bp
+    from client import client_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(contractor_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(client_bp)
 
     @app.route("/")
     def index():
@@ -48,6 +50,8 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
+        from db_upgrade import run as run_db_upgrade
+        run_db_upgrade(db)
 
     from scheduler_jobs import register_jobs
     register_jobs(app, scheduler)

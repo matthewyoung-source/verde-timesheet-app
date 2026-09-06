@@ -154,3 +154,53 @@ def create_draft_invoice(client_id, client_secret, client_name, client_xero_cont
 
     except Exception:
         return None, "failed"
+
+
+def update_draft_invoice_hours(client_id, client_secret, invoice_id, contractor_name,
+                                week_start, week_end, hours, billing_rate):
+    """Updates the hours line on an existing DRAFT invoice -- used when an
+    admin edits a packet's hours/rate at approval time, after it's already
+    synced to Xero. If the invoice has since been approved/paid in Xero
+    itself, this call will simply fail and the admin keeps their in-app
+    numbers as the source of truth. Returns 'updated', 'not_connected', or 'failed'."""
+
+    token = XeroToken.query.first()
+    if not token or not client_id or not client_secret or not invoice_id:
+        return "not_connected"
+
+    try:
+        token = _refresh_if_needed(token, client_id, client_secret)
+
+        description = (
+            f"{contractor_name} - hours worked "
+            f"{week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')}"
+        )
+
+        payload = {
+            "InvoiceID": invoice_id,
+            "Type": "ACCREC",
+            "LineItems": [
+                {
+                    "Description": description,
+                    "Quantity": float(hours),
+                    "UnitAmount": float(billing_rate),
+                    "AccountCode": "200",
+                }
+            ],
+        }
+
+        resp = requests.post(
+            f"{INVOICES_URL}/{invoice_id}",
+            json={"Invoices": [payload]},
+            headers={
+                "Authorization": f"Bearer {token.access_token}",
+                "Xero-tenant-id": token.tenant_id,
+                "Accept": "application/json",
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        return "updated"
+
+    except Exception:
+        return "failed"

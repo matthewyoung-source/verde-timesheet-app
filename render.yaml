@@ -36,3 +36,29 @@ services:
       # the same value as the redirect URI on your Xero app.
       - key: XERO_REDIRECT_URI
         value: https://verde-timesheet-app.onrender.com/xero/callback
+      # Outgoing email -- password reset links and the 5pm daily reminder.
+      # Until SMTP_HOST is filled in, these are skipped gracefully (just
+      # logged), same as Xero above.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: MAIL_FROM
+        value: no-reply@verdesolutions.co.uk
+      # Used to build absolute links in emails -- update to the real
+      # address Render gives the app (same one used for XERO_REDIRECT_URI above).
+      - key: APP_BASE_URL
+        value: https://verde-timesheet-app.onrender.com
+      # Daily "log your hours" reminder -- 5pm Pacific by default.
+      - key: REMINDER_HOUR
+        value: "17"
+      - key: REMINDER_MINUTE
+        value: "0"
+      - key: REMINDER_TIMEZONE
+        value: America/Los_Angeles

@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from extensions import db
-from models import Assignment, TimesheetEntry, Expense
+from models import Assignment, TimesheetEntry, Expense, WeeklyPacket
 from ocr import extract_amount_from_receipt
 from utils import week_bounds
 
@@ -70,6 +70,9 @@ def timesheet(assignment_id):
     monday, sunday = week_bounds()
     days = [monday + timedelta(days=i) for i in range(7)]
 
+    packet = WeeklyPacket.query.filter_by(assignment_id=assignment.id, week_start=monday).first()
+    locked = packet.is_locked() if packet else False
+
     existing = {
         e.work_date: e
         for e in assignment.timesheet_entries.filter(
@@ -78,6 +81,10 @@ def timesheet(assignment_id):
     }
 
     if request.method == "POST":
+        if locked:
+            flash("This week has already been approved and locked -- ask Matthew if it needs a change.", "error")
+            return redirect(url_for("contractor.dashboard"))
+
         for day in days:
             key = day.isoformat()
             hours_raw = request.form.get(f"hours_{key}", "").strip()
@@ -108,7 +115,8 @@ def timesheet(assignment_id):
         return redirect(url_for("contractor.dashboard"))
 
     return render_template(
-        "timesheet_form.html", assignment=assignment, days=days, existing=existing, monday=monday, sunday=sunday
+        "timesheet_form.html", assignment=assignment, days=days, existing=existing,
+        monday=monday, sunday=sunday, locked=locked,
     )
 
 
@@ -122,7 +130,14 @@ def expenses(assignment_id):
 
     monday, sunday = week_bounds()
 
+    packet = WeeklyPacket.query.filter_by(assignment_id=assignment.id, week_start=monday).first()
+    locked = packet.is_locked() if packet else False
+
     if request.method == "POST":
+        if locked:
+            flash("This week has already been approved and locked -- ask Matthew if it needs a change.", "error")
+            return redirect(url_for("contractor.expenses", assignment_id=assignment.id))
+
         photo = request.files.get("photo")
         expense_date_raw = request.form.get("expense_date")
         description = request.form.get("description", "").strip()
@@ -175,7 +190,8 @@ def expenses(assignment_id):
     ).order_by(Expense.expense_date.desc()).all()
 
     return render_template(
-        "expense_form.html", assignment=assignment, monday=monday, sunday=sunday, week_expenses=week_expenses
+        "expense_form.html", assignment=assignment, monday=monday, sunday=sunday,
+        week_expenses=week_expenses, locked=locked,
     )
 
 
@@ -186,6 +202,12 @@ def confirm_expense_amount(expense_id):
     expense = Expense.query.get_or_404(expense_id)
     if expense.assignment.contractor_id != current_user.id:
         abort(403)
+
+    exp_monday, _ = week_bounds(expense.expense_date)
+    packet = WeeklyPacket.query.filter_by(assignment_id=expense.assignment_id, week_start=exp_monday).first()
+    if packet and packet.is_locked():
+        flash("This week has already been approved and locked -- ask Matthew if it needs a change.", "error")
+        return redirect(url_for("contractor.expenses", assignment_id=expense.assignment_id))
 
     amount_raw = request.form.get("amount", "").strip()
     try:
