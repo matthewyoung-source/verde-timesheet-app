@@ -15,12 +15,35 @@
   </form>
 </div>
 
-<div class="card">
-  <table>
-    <tr><th>Name</th><th>Billing email</th></tr>
-    {% for c in clients %}
-      <tr><td>{{ c.name }}</td><td>{{ c.billing_email or '-' }}</td></tr>
-    {% endfor %}
-  </table>
-</div>
+{% for c in clients %}
+  <div class="card">
+    <h3>{{ c.name }}</h3>
+    <p class="muted">{{ c.billing_email or 'no billing email on file' }}</p>
+
+    <form method="POST" action="{{ url_for('admin.toggle_client_approval', client_id=c.id) }}" style="margin-bottom:14px;">
+      <p>
+        {% if c.requires_client_approval %}
+          <span class="pill green">Client sign-off required</span>
+        {% else %}
+          <span class="pill grey">Client sign-off not required</span>
+        {% endif %}
+        <button class="btn secondary" type="submit" style="padding:6px 10px; margin-left:8px;">
+          {{ 'Turn off' if c.requires_client_approval else 'Turn on' }}
+        </button>
+      </p>
+      <p class="muted">When on, {{ c.name }}'s contact(s) below get a login to approve or dispute each week's packet. This is a record only -- it never blocks the Xero draft invoice.</p>
+    </form>
+
+    <details>
+      <summary style="cursor:pointer; color: var(--green); font-weight:600;">+ Add a client contact login</summary>
+      <form method="POST" action="{{ url_for('admin.create_client_contact', client_id=c.id) }}" style="margin-top:10px;">
+        <div class="grid-2">
+          <div><label>Contact name</label><input type="text" name="name" required></div>
+          <div><label>Email</label><input type="email" name="email" required></div>
+        </div>
+        <button class="btn" type="submit">Add contact</button>
+      </form>
+    </details>
+  </div>
+{% endfor %}
 {% endblock %}

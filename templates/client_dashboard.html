@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Weekly approvals - Verde Solutions{% endblock %}
+{% block content %}
+<h1>{{ client.name }}</h1>
+<p class="muted">Review each week's hours and let us know if it looks right.</p>
+
+{% if not packets %}
+  <div class="card">
+    <p class="muted">Nothing to review yet.</p>
+  </div>
+{% endif %}
+
+{% for p in packets %}
+  <div class="card">
+    <h3>Week of {{ p.week_start.strftime('%b %d') }} - {{ p.week_end.strftime('%b %d, %Y') }}</h3>
+    <p>{{ p.assignment.contractor.name }} &middot; {{ p.total_hours }} hours{% if p.total_expenses %} &middot; ${{ '%.2f'|format(p.total_expenses) }} expenses{% endif %}</p>
+    <p><a href="{{ url_for('client.download_packet', packet_id=p.id) }}">View PDF</a></p>
+
+    {% if p.client_approval_status == 'pending' %}
+      <form method="POST" action="{{ url_for('client.respond', packet_id=p.id) }}">
+        <label>Note (optional)</label>
+        <input type="text" name="note" placeholder="e.g. looks good, or explain a dispute">
+        <button class="btn" type="submit" name="decision" value="approve">Approve</button>
+        <button class="btn secondary" type="submit" name="decision" value="dispute">Dispute</button>
+      </form>
+    {% elif p.client_approval_status == 'approved' %}
+      <p><span class="pill green">You approved this</span>{% if p.client_approval_note %} -- "{{ p.client_approval_note }}"{% endif %}</p>
+    {% elif p.client_approval_status == 'disputed' %}
+      <p><span class="pill grey">You disputed this</span>{% if p.client_approval_note %} -- "{{ p.client_approval_note }}"{% endif %}</p>
+    {% endif %}
+  </div>
+{% endfor %}
+{% endblock %}

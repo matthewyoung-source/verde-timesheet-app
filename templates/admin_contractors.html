@@ -21,9 +21,12 @@
   <div class="card">
     <h3>{{ c.name }}</h3>
     <p class="muted">{{ c.email }}</p>
+    <form method="POST" action="{{ url_for('admin.reset_password', user_id=c.id) }}" onsubmit="return confirm('Generate a new temporary password for {{ c.name }}?');" style="margin-bottom:10px;">
+      <button class="btn secondary" type="submit" style="padding:6px 10px;">Reset password</button>
+    </form>
 
     <table>
-      <tr><th>Client</th><th>Role</th><th>Rate</th><th></th></tr>
+      <tr><th>Client</th><th>Role</th><th>Rate</th><th>Status</th><th></th></tr>
       {% for a in c.assignments %}
         <tr>
           <td>{{ a.client.name }}</td>
@@ -34,7 +37,17 @@
               <button class="btn secondary" type="submit" style="padding:6px 10px;">Save</button>
             </form>
           </td>
-          <td>{{ 'active' if a.active else 'inactive' }}</td>
+          <td>
+            {% if a.active %}<span class="pill green">active</span>
+            {% else %}<span class="pill grey">ended {{ a.end_date.strftime('%m/%d/%Y') if a.end_date else '' }}</span>{% endif %}
+          </td>
+          <td>
+            {% if a.active %}
+              <form method="POST" action="{{ url_for('admin.end_assignment', assignment_id=a.id) }}" onsubmit="return confirm('End this assignment? The contractor will no longer be able to log hours against it.');">
+                <button class="btn secondary" type="submit" style="padding:6px 10px;">End assignment</button>
+              </form>
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
     </table>

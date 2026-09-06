@@ -5,6 +5,12 @@
 <h1>Log hours</h1>
 <p class="muted">{{ assignment.client.name }} &middot; {{ monday.strftime('%b %d') }} - {{ sunday.strftime('%b %d, %Y') }}</p>
 
+{% if locked %}
+  <div class="card">
+    <p><span class="pill green">Approved &amp; locked</span> Matthew has already approved this week -- only he can make further changes.</p>
+  </div>
+{% endif %}
+
 <form method="POST">
   <div class="card">
     <table>
@@ -13,12 +19,14 @@
         {% set entry = existing.get(day) %}
         <tr>
           <td>{{ day.strftime('%a %m/%d') }}</td>
-          <td><input type="number" step="0.25" min="0" max="24" name="hours_{{ day.isoformat() }}" value="{{ entry.hours if entry else '' }}" style="margin-bottom:0;"></td>
-          <td><input type="text" name="notes_{{ day.isoformat() }}" value="{{ entry.notes if entry else '' }}" placeholder="optional" style="margin-bottom:0;"></td>
+          <td><input type="number" step="0.25" min="0" max="24" name="hours_{{ day.isoformat() }}" value="{{ entry.hours if entry else '' }}" style="margin-bottom:0;" {{ 'disabled' if locked }}></td>
+          <td><input type="text" name="notes_{{ day.isoformat() }}" value="{{ entry.notes if entry else '' }}" placeholder="optional" style="margin-bottom:0;" {{ 'disabled' if locked }}></td>
         </tr>
       {% endfor %}
     </table>
   </div>
-  <button class="btn" type="submit">Save hours</button>
+  {% if not locked %}
+    <button class="btn" type="submit">Save hours</button>
+  {% endif %}
 </form>
 {% endblock %}

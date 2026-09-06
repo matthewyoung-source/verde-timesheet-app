@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Reports - Verde Solutions{% endblock %}
+{% block content %}
+<a class="muted" href="{{ url_for('admin.dashboard') }}">&larr; Back</a>
+<h1>Reports</h1>
+
+<div class="card">
+  <h3>Packet status overview</h3>
+  <p>
+    <span class="pill green">Approved: {{ status_counts.get('approved', 0) }}</span>
+    <span class="pill grey">Awaiting approval: {{ status_counts.get('pending', 0) }}</span>
+  </p>
+  <p>
+    <span class="pill grey">Client sign-off pending: {{ client_approval_counts.get('pending', 0) }}</span>
+    <span class="pill green">Client approved: {{ client_approval_counts.get('approved', 0) }}</span>
+    <span class="pill grey">Client disputed: {{ client_approval_counts.get('disputed', 0) }}</span>
+  </p>
+</div>
+
+{% if pending_packets %}
+  <div class="card">
+    <h3>Awaiting your approval</h3>
+    <table>
+      <tr><th>Contractor</th><th>Client</th><th>Week of</th><th>Hours</th><th></th></tr>
+      {% for p in pending_packets %}
+        <tr>
+          <td>{{ p.assignment.contractor.name }}</td>
+          <td>{{ p.assignment.client.name }}</td>
+          <td>{{ p.week_start.strftime('%m/%d') }}</td>
+          <td>{{ p.total_hours }}</td>
+          <td><a href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">Review</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endif %}
+
+<div class="card">
+  <h3>Hours &amp; expenses by client</h3>
+  {% if not client_stats %}
+    <p class="muted">No packets generated yet.</p>
+  {% else %}
+    <table>
+      <tr><th>Client</th><th>Hours</th><th>Expenses</th><th>Billed (hours &times; rate)</th></tr>
+      {% for name, hours, expenses, billed in client_stats %}
+        <tr>
+          <td>{{ name }}</td>
+          <td>{{ hours }}</td>
+          <td>${{ '%.2f'|format(expenses) }}</td>
+          <td>${{ '%.2f'|format(billed) }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Hours by contractor</h3>
+  <p class="muted">"Billed" is what clients are charged for this contractor's hours -- this app doesn't track a separate contractor pay rate, so it isn't what the contractor is paid.</p>
+  {% if not contractor_stats %}
+    <p class="muted">No packets generated yet.</p>
+  {% else %}
+    <table>
+      <tr><th>Contractor</th><th>Hours</th><th>Billed</th></tr>
+      {% for name, hours, billed in contractor_stats %}
+        <tr>
+          <td>{{ name }}</td>
+          <td>{{ hours }}</td>
+          <td>${{ '%.2f'|format(billed) }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

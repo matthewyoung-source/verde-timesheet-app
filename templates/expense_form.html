@@ -5,6 +5,11 @@
 <h1>Add expense</h1>
 <p class="muted">{{ assignment.client.name }} &middot; this week: {{ monday.strftime('%b %d') }} - {{ sunday.strftime('%b %d, %Y') }}</p>
 
+{% if locked %}
+  <div class="card">
+    <p><span class="pill green">Approved &amp; locked</span> Matthew has already approved this week -- only he can make further changes.</p>
+  </div>
+{% else %}
 <div class="card">
   <form method="POST" enctype="multipart/form-data">
     <label>Receipt photo</label>
@@ -22,6 +27,7 @@
     <button class="btn" type="submit">Submit expense</button>
   </form>
 </div>
+{% endif %}
 
 <h2>This week's expenses</h2>
 {% if not week_expenses %}
@@ -34,6 +40,8 @@
       <div>{{ exp.expense_date.strftime('%m/%d/%Y') }} &middot; {{ exp.description or 'Receipt' }}</div>
       {% if exp.is_amount_confirmed %}
         <div><span class="pill green">${{ '%.2f'|format(exp.amount) }} confirmed</span></div>
+      {% elif locked %}
+        <div><span class="pill grey">auto-read: ${{ '%.2f'|format(exp.ocr_amount) if exp.ocr_amount else 'unreadable' }} -- locked, ask Matthew to confirm</span></div>
       {% else %}
         <form method="POST" action="{{ url_for('contractor.confirm_expense_amount', expense_id=exp.id) }}" style="display:flex; gap:8px; align-items:center; margin-top:6px;">
           <span class="pill grey">auto-read: ${{ '%.2f'|format(exp.ocr_amount) if exp.ocr_amount else 'unreadable' }}</span>
