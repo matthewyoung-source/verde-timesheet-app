@@ -233,3 +233,20 @@ def update_draft_invoice(client_id, client_secret, invoice_id, lines, reference=
 
     except Exception:
         return "failed"
+
+
+def fetch_invoice_pdf(client_id, client_secret, invoice_id):
+    """Returns the invoice as PDF bytes, rendered by Xero with whatever branding
+    theme the invoice carries, or None if Xero isn't connected / the call fails."""
+    token = XeroToken.query.first()
+    if not token or not client_id or not client_secret or not invoice_id:
+        return None
+    try:
+        token = _refresh_if_needed(token, client_id, client_secret)
+        headers = _headers(token)
+        headers["Accept"] = "application/pdf"
+        resp = requests.get(f"{INVOICES_URL}/{invoice_id}", headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.content
+    except Exception:
+        return None

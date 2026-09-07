@@ -3,7 +3,8 @@ import secrets
 from datetime import datetime, date, timedelta
 
 from flask import (
-    Blueprint, render_template, redirect, url_for, request, flash, current_app, abort, send_from_directory
+    Blueprint, render_template, redirect, url_for, request, flash, current_app, abort,
+    send_from_directory, send_file,
 )
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -443,6 +444,21 @@ def download_packet(packet_id):
     if not packet.pdf_filename:
         abort(404)
     return send_from_directory(current_app.config["PDF_FOLDER"], packet.pdf_filename, as_attachment=True)
+
+
+@admin_bp.route("/packets/<int:packet_id>/download-full")
+@login_required
+def download_full_packet(packet_id):
+    """Invoice + timesheet + expenses + receipts as one PDF, ready to send."""
+    _require_admin()
+    packet = WeeklyPacket.query.get_or_404(packet_id)
+    merged, invoice_included = packets.full_packet_pdf(packet)
+    if merged is None:
+        abort(404)
+    if not invoice_included:
+        flash("Xero invoice could not be fetched, so this download is the timesheet packet only.", "error")
+    name = packet.pdf_filename.replace("timesheet_", "invoice_and_timesheet_", 1)
+    return send_file(merged, mimetype="application/pdf", as_attachment=True, download_name=name)
 
 
 @admin_bp.route("/xero/connect")

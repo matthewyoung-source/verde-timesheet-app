@@ -2,8 +2,11 @@
 PDF, works out the billing figures, and creates / updates the Xero draft.
 Used by the Sunday job and by the admin packet screen so both behave the same."""
 
+import io
 import os
 from datetime import date
+
+from pypdf import PdfReader, PdfWriter
 
 from flask import current_app
 
@@ -139,3 +142,37 @@ def regenerate_packet(packet, entries, expenses, per_diem_days=None):
         packet.xero_invoice_id = invoice_id
         packet.xero_invoice_status = invoice_status
     return figures
+
+
+def full_packet_pdf(packet):
+    """Xero invoice (page 1) followed by the timesheet packet, as one PDF in
+    memory -- the same bundle Matthew used to assemble by hand. If the invoice
+    can't be fetched (Xero not connected, draft deleted), returns just the packet."""
+    packet_path = os.path.join(current_app.config["PDF_FOLDER"], packet.pdf_filename or "")
+    if not packet.pdf_filename or not os.path.exists(packet_path):
+        return None, False
+
+    writer = PdfWriter()
+    invoice_included = False
+    invoice_bytes = xero_integration.fetch_invoice_pdf(
+        current_app.config["XERO_CLIENT_ID"],
+        current_app.config["XERO_CLIENT_SECRET"],
+        packet.xero_invoice_id,
+    )
+    if invoice_bytes:
+        try:
+            for page in PdfReader(io.BytesIO(invoice_bytes)).pages:
+                # Xero pads some invoices with a blank trailing page; skip pages with no text.
+                if (page.extract_text() or "").strip():
+                    writer.add_page(page)
+            invoice_included = True
+        except Exception:
+            invoice_included = False
+
+    for page in PdfReader(packet_path).pages:
+        writer.add_page(page)
+
+    out = io.BytesIO()
+    writer.write(out)
+    out.seek(0)
+    return out, invoice_included
