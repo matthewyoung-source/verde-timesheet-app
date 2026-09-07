@@ -6,18 +6,21 @@
   <title>{% block title %}Verde Solutions{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
 </head>
 <body>
   <div class="topbar">
-    <a class="brand" href="{{ url_for('contractor.dashboard') if current_user.is_authenticated and not current_user.is_admin() else url_for('admin.dashboard') if current_user.is_authenticated else url_for('auth.login') }}">
+    <a class="brand" href="{{ url_for(current_user.home_endpoint()) if current_user.is_authenticated else url_for('auth.login') }}">
       <img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions">
     </a>
     <nav>
       {% if current_user.is_authenticated %}
         <span>{{ current_user.name }}</span>
+        {% if current_user.is_admin() %}
+          <a href="{{ url_for('admin.reports') }}">Reports</a>
+        {% endif %}
         <a href="{{ url_for('auth.account') }}">My account</a>
         <a href="{{ url_for('auth.logout') }}">Log out</a>
       {% endif %}
