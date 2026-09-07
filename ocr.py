@@ -13,6 +13,12 @@ from decimal import Decimal, InvalidOperation
 from PIL import Image
 import pytesseract
 
+try:  # iPhone photos arrive as HEIC; this teaches Pillow to open them.
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except Exception:
+    pass
+
 # Words that usually sit right next to the figure we actually want.
 TOTAL_KEYWORDS = ["total", "amount due", "balance due", "grand total", "amount"]
 

@@ -8,8 +8,17 @@ one assignment, Monday to Sunday, in the Verde Solutions layout:
 Colours and layout follow the Verde Excel template (verde-solutions.net palette).
 """
 
+import io
 import os
 from datetime import timedelta
+
+from PIL import Image as PILImage, ImageOps
+
+try:  # iPhone photos arrive as HEIC; this teaches Pillow to open them.
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except Exception:
+    pass
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
@@ -64,6 +73,28 @@ def _fmt_time(t):
 
 def _fmt_money(v):
     return f"${v:,.2f}"
+
+
+def _receipt_flowable(photo_path, max_w, max_h):
+    """Opens the receipt with Pillow (HEIC included), fixes orientation, and
+    hands ReportLab a clean JPEG. Returns None if the file can't be read, so
+    a bad photo never brings the whole packet down."""
+    try:
+        with PILImage.open(photo_path) as im:
+            im = ImageOps.exif_transpose(im)
+            if im.mode not in ("RGB", "L"):
+                im = im.convert("RGB")
+            im.thumbnail((1600, 1600))
+            buf = io.BytesIO()
+            im.save(buf, "JPEG", quality=85)
+            w, h = im.size
+        buf.seek(0)
+        scale = min(max_w / w, max_h / h, 1.0)
+        img = RLImage(buf, width=w * scale, height=h * scale)
+        img.hAlign = "LEFT"
+        return img
+    except Exception:
+        return None
 
 
 def _draw_band(canvas, doc, title):
@@ -281,11 +312,10 @@ def build_weekly_pdf(output_path, assignment, week_start, week_end,
                    f"{exp.expense_date.strftime('%m/%d/%Y')}  -  {_fmt_money(float(exp.amount or 0))}")
         el.append(Paragraph(caption, _caption))
         el.append(Spacer(1, 6))
-        try:
-            img = RLImage(photo_path, width=5.6 * inch, height=7.2 * inch, kind="proportional")
-            img.hAlign = "LEFT"
+        img = _receipt_flowable(photo_path, 5.6 * inch, 7.2 * inch)
+        if img is not None:
             el.append(img)
-        except Exception:
+        else:
             el.append(Paragraph("(receipt image could not be embedded)", _muted))
 
     doc.build(el, onFirstPage=on_page, onLaterPages=on_page)

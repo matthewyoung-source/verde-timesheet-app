@@ -7,6 +7,13 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
+from PIL import Image, ImageOps
+
+try:  # iPhone photos arrive as HEIC; this teaches Pillow to open them.
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except Exception:
+    pass
 
 from extensions import db
 from models import Assignment, TimesheetEntry, Expense, WeeklyPacket
@@ -16,11 +23,30 @@ import billing
 
 contractor_bp = Blueprint("contractor", __name__, url_prefix="/my")
 
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "heic", "webp"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "heic", "heif", "webp"}
+MAX_PHOTO_EDGE = 2000  # px -- plenty for a legible receipt, keeps PDFs small
 
 
 def _allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _normalise_photo(raw_path, jpeg_path):
+    """Turns whatever the phone sent (HEIC, huge PNG, sideways JPEG) into an
+    upright, reasonably sized JPEG that browsers, OCR and the PDF can all
+    read. Returns True on success; on failure the original is kept as is."""
+    try:
+        with Image.open(raw_path) as im:
+            im = ImageOps.exif_transpose(im)
+            if im.mode not in ("RGB", "L"):
+                im = im.convert("RGB")
+            im.thumbnail((MAX_PHOTO_EDGE, MAX_PHOTO_EDGE))
+            im.save(jpeg_path, "JPEG", quality=88, optimize=True)
+        if raw_path != jpeg_path:
+            os.remove(raw_path)
+        return True
+    except Exception:
+        return False
 
 
 def _require_contractor():
@@ -173,9 +199,16 @@ def expenses(assignment_id):
             return redirect(url_for("contractor.expenses", assignment_id=assignment.id))
 
         ext = photo.filename.rsplit(".", 1)[1].lower()
-        filename = secure_filename(f"{uuid.uuid4().hex}.{ext}")
+        stem = uuid.uuid4().hex
+        raw_name = secure_filename(f"{stem}.{ext}")
+        raw_path = os.path.join(current_app.config["UPLOAD_FOLDER"], raw_name)
+        photo.save(raw_path)
+
+        # Convert to JPEG so HEIC from iPhones (and oversized PNGs) work everywhere.
+        filename = f"{stem}.jpg"
         save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-        photo.save(save_path)
+        if not _normalise_photo(raw_path, save_path):
+            filename, save_path = raw_name, raw_path
 
         ocr_amount, confidence = extract_amount_from_receipt(save_path)
 
