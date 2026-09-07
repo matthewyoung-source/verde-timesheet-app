@@ -35,7 +35,7 @@ services:
       # its first deploy (shown on the service's dashboard page), then use
       # the same value as the redirect URI on your Xero app.
       - key: XERO_REDIRECT_URI
-        value: https://verde-timesheet-app.onrender.com/xero/callback
+        value: https://verde-timesheet-app.onrender.com/admin/xero/callback
       # Outgoing email -- password reset links and the 5pm daily reminder.
       # Until SMTP_HOST is filled in, these are skipped gracefully (just
       # logged), same as Xero above.
