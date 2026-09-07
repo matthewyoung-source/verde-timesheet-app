@@ -100,6 +100,22 @@ class Assignment(db.Model):
     billing_rate = db.Column(db.Numeric(10, 2), nullable=False)  # $/hour charged to client
     role_title = db.Column(db.String(150), nullable=True)  # e.g. "Site Electrician"
     active = db.Column(db.Boolean, default=True, nullable=False)
+
+    # --- Invoicing detail (matches how Verde bills, e.g. INV176 / INV177) ---
+    # Overtime is billed at 1.5x billing_rate unless a specific rate is set here.
+    overtime_rate = db.Column(db.Numeric(10, 2), nullable=True)
+    # Per diem: what the client is billed per day, and what the contractor
+    # receives per day (shown on the timesheet packet). Billed for
+    # per_diem_days each week (7 = every day of the week, Verde's default).
+    per_diem_bill_rate = db.Column(db.Numeric(10, 2), nullable=True)
+    per_diem_contractor_rate = db.Column(db.Numeric(10, 2), nullable=True)
+    per_diem_days = db.Column(db.Integer, default=7, nullable=False)
+    # Unpaid break deducted from each day's hours when start/end times are used.
+    daily_break_hours = db.Column(db.Numeric(4, 2), default=0, nullable=False)
+    # PO # printed on the packet (e.g. VerdeCCAbnerBELLSOLAR) and the Xero
+    # reference prefix (e.g. VerdeCC_Abner_Bell -> VerdeCC_Abner_Bell_09.06.2026).
+    po_number = db.Column(db.String(100), nullable=True)
+    invoice_reference_prefix = db.Column(db.String(100), nullable=True)
     start_date = db.Column(db.Date, default=date.today)
     end_date = db.Column(db.Date, nullable=True)  # set when the assignment is ended
 
@@ -108,6 +124,11 @@ class Assignment(db.Model):
 
     timesheet_entries = db.relationship("TimesheetEntry", back_populates="assignment", lazy="dynamic")
     expenses = db.relationship("Expense", back_populates="assignment", lazy="dynamic")
+
+    def effective_overtime_rate(self):
+        if self.overtime_rate is not None:
+            return float(self.overtime_rate)
+        return round(float(self.billing_rate) * 1.5, 2)
 
     def __repr__(self):
         return f"<Assignment {self.contractor_id}->{self.client_id} @ {self.billing_rate}/hr>"
@@ -120,6 +141,10 @@ class TimesheetEntry(db.Model):
     assignment_id = db.Column(db.Integer, db.ForeignKey("assignment.id"), nullable=False)
     work_date = db.Column(db.Date, nullable=False)
     hours = db.Column(db.Numeric(5, 2), nullable=False)
+    # Optional clock times; when both are given, hours is derived from them
+    # (less the assignment's daily break) and they print on the packet.
+    start_time = db.Column(db.Time, nullable=True)
+    end_time = db.Column(db.Time, nullable=True)
     notes = db.Column(db.String(300), nullable=True)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -145,6 +170,9 @@ class Expense(db.Model):
     ocr_confidence = db.Column(db.String(20), nullable=True)  # 'high' / 'low' / 'none'
     is_amount_confirmed = db.Column(db.Boolean, default=False, nullable=False)
     description = db.Column(db.String(300), nullable=True)
+    # Expense type -- same-type expenses roll up into one line on the Xero
+    # invoice (all fuel receipts become a single "Fuel" line, etc).
+    category = db.Column(db.String(50), nullable=True)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     assignment = db.relationship("Assignment", back_populates="expenses")
@@ -174,6 +202,11 @@ class WeeklyPacket(db.Model):
     pdf_filename = db.Column(db.String(300), nullable=True)
     total_hours = db.Column(db.Numeric(6, 2), nullable=True)
     total_expenses = db.Column(db.Numeric(10, 2), nullable=True)
+    regular_hours = db.Column(db.Numeric(6, 2), nullable=True)
+    overtime_hours = db.Column(db.Numeric(6, 2), nullable=True)
+    # Admin can change the per diem day count for one week before approving.
+    per_diem_days = db.Column(db.Integer, nullable=True)
+    xero_reference = db.Column(db.String(150), nullable=True)
     generated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     xero_invoice_id = db.Column(db.String(100), nullable=True)

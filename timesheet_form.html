@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Log hours - Verde Solutions{% endblock %}
+{% block content %}
+<a class="muted" href="{{ url_for('contractor.dashboard') }}">&larr; Back</a>
+<h1>Log hours</h1>
+<p class="muted">{{ assignment.client.name }} &middot; {{ monday.strftime('%b %d') }} - {{ sunday.strftime('%b %d, %Y') }}</p>
+
+{% if locked %}
+  <div class="card">
+    <p><span class="pill green">Approved &amp; locked</span> Matthew has already approved this week -- only he can make further changes.</p>
+  </div>
+{% endif %}
+
+<form method="POST">
+  <div class="card">
+    <p class="muted" style="margin-top:0;">Enter your start and end time for each day and the hours work themselves out{% if assignment.daily_break_hours and assignment.daily_break_hours > 0 %} (less a {{ assignment.daily_break_hours }} hour break){% endif %}. Leave a day blank if you didn't work.</p>
+    <table>
+      <tr><th>Day</th><th>Start</th><th>End</th><th>Hours</th><th>Notes</th></tr>
+      {% for day in days %}
+        {% set entry = existing.get(day) %}
+        <tr>
+          <td>{{ day.strftime('%a %m/%d') }}</td>
+          <td><input type="time" name="start_{{ day.isoformat() }}" value="{{ entry.start_time.strftime('%H:%M') if entry and entry.start_time else '' }}" style="margin-bottom:0; width:120px;" {{ 'disabled' if locked }}></td>
+          <td><input type="time" name="end_{{ day.isoformat() }}" value="{{ entry.end_time.strftime('%H:%M') if entry and entry.end_time else '' }}" style="margin-bottom:0; width:120px;" {{ 'disabled' if locked }}></td>
+          <td><input type="number" step="0.25" min="0" max="24" name="hours_{{ day.isoformat() }}" value="{{ entry.hours if entry else '' }}" placeholder="auto" style="margin-bottom:0; width:80px;" {{ 'disabled' if locked }}></td>
+          <td><input type="text" name="notes_{{ day.isoformat() }}" value="{{ entry.notes if entry else '' }}" placeholder="optional" style="margin-bottom:0;" {{ 'disabled' if locked }}></td>
+        </tr>
+      {% endfor %}
+    </table>
+    <p class="muted" style="margin-bottom:0;">Hours is filled in for you from the times. Only type a figure there if you don't know exact times.</p>
+  </div>
+  {% if not locked %}
+    <button class="btn" type="submit">Save hours</button>
+  {% endif %}
+</form>
+{% endblock %}

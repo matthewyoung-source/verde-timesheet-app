@@ -11,7 +11,8 @@ from sqlalchemy import func
 from extensions import db
 from models import User, Client, Assignment, WeeklyPacket, TimesheetEntry, Expense
 from utils import week_bounds
-from pdf_generator import build_weekly_pdf
+import billing
+import packets
 import xero_integration
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -26,39 +27,6 @@ def _generate_temp_password():
     # Words-and-digits so Matthew can read it aloud/text it easily, e.g. "amber-plank-8341".
     words = ["amber", "cedar", "plank", "ridge", "delta", "birch", "quartz", "meadow", "harbor", "cinder"]
     return f"{secrets.choice(words)}-{secrets.choice(words)}-{secrets.randbelow(9000) + 1000}"
-
-
-def _regenerate_packet(packet, assignment, entries, expenses):
-    """Rebuilds a packet's PDF (same filename, in place) and refreshes its
-    total_hours/total_expenses from whatever's in `entries`/`expenses` now --
-    used when an admin edits hours/amounts before or at approval time."""
-    expense_rows = []
-    for exp in expenses:
-        photo_path = os.path.join(current_app.config["UPLOAD_FOLDER"], exp.photo_filename)
-        expense_rows.append(
-            type("ExpenseRow", (), {
-                "expense_date": exp.expense_date,
-                "amount": exp.amount,
-                "description": exp.description,
-                "photo_path": photo_path,
-            })
-        )
-
-    output_path = os.path.join(current_app.config["PDF_FOLDER"], packet.pdf_filename)
-    totals = build_weekly_pdf(
-        output_path=output_path,
-        company_name=current_app.config["COMPANY_NAME"],
-        contractor_name=assignment.contractor.name,
-        client_name=assignment.client.name,
-        role_title=assignment.role_title,
-        week_start=packet.week_start,
-        week_end=packet.week_end,
-        billing_rate=float(assignment.billing_rate),
-        timesheet_entries=entries,
-        expenses=expense_rows,
-    )
-    packet.total_hours = totals["total_hours"]
-    packet.total_expenses = totals["total_expenses"]
 
 
 @admin_bp.route("/")
@@ -159,9 +127,51 @@ def create_assignment():
         billing_rate=billing_rate_val,
         role_title=role_title or None,
     )
+    _apply_billing_fields(assignment, request.form)
     db.session.add(assignment)
     db.session.commit()
-    flash("Assignment and billing rate saved.", "success")
+    flash("Assignment and billing details saved.", "success")
+    return redirect(url_for("admin.contractors"))
+
+
+def _money_or_none(raw):
+    raw = (raw or "").strip()
+    if raw == "":
+        return None
+    return float(raw)
+
+
+def _apply_billing_fields(assignment, form):
+    """Reads the invoicing fields shared by the add and edit assignment forms."""
+    try:
+        assignment.overtime_rate = _money_or_none(form.get("overtime_rate"))
+        assignment.per_diem_bill_rate = _money_or_none(form.get("per_diem_bill_rate"))
+        assignment.per_diem_contractor_rate = _money_or_none(form.get("per_diem_contractor_rate"))
+        days = (form.get("per_diem_days") or "").strip()
+        assignment.per_diem_days = int(days) if days != "" else 7
+        brk = (form.get("daily_break_hours") or "").strip()
+        assignment.daily_break_hours = float(brk) if brk != "" else 0
+    except ValueError:
+        pass  # leave whatever was there; the field-level checks on the form stop most of this
+    assignment.po_number = (form.get("po_number") or "").strip() or None
+    assignment.invoice_reference_prefix = (form.get("invoice_reference_prefix") or "").strip() or None
+
+
+@admin_bp.route("/assignments/<int:assignment_id>/billing", methods=["POST"])
+@login_required
+def update_billing(assignment_id):
+    _require_admin()
+    assignment = Assignment.query.get_or_404(assignment_id)
+    billing_rate = request.form.get("billing_rate", "").strip()
+    try:
+        if billing_rate:
+            assignment.billing_rate = float(billing_rate)
+    except ValueError:
+        flash("Enter a valid billing rate.", "error")
+        return redirect(url_for("admin.contractors"))
+    _apply_billing_fields(assignment, request.form)
+    db.session.commit()
+    flash(f"Billing details updated for {assignment.contractor.name} at {assignment.client.name}.", "success")
     return redirect(url_for("admin.contractors"))
 
 
@@ -259,8 +269,16 @@ def packet_detail(packet_id):
         action = request.form.get("action")
 
         for entry in entries:
+            start_raw = request.form.get(f"start_{entry.id}", "").strip()
+            end_raw = request.form.get(f"end_{entry.id}", "").strip()
             hours_raw = request.form.get(f"hours_{entry.id}", "").strip()
-            if hours_raw:
+            start_t = _parse_time(start_raw)
+            end_t = _parse_time(end_raw)
+            if start_t and end_t:
+                entry.start_time = start_t
+                entry.end_time = end_t
+                entry.hours = billing.hours_from_times(start_t, end_t, assignment.daily_break_hours)
+            elif hours_raw:
                 try:
                     entry.hours = float(hours_raw)
                 except ValueError:
@@ -272,35 +290,32 @@ def packet_detail(packet_id):
                     exp.amount = float(amount_raw)
                 except ValueError:
                     pass
+            category = request.form.get(f"category_{exp.id}", "").strip()
+            if category:
+                exp.category = category
 
-        _regenerate_packet(packet, assignment, entries, packet_expenses)
+        per_diem_raw = request.form.get("per_diem_days", "").strip()
+        per_diem_days = None
+        if per_diem_raw != "":
+            try:
+                per_diem_days = max(0, min(7, int(per_diem_raw)))
+            except ValueError:
+                per_diem_days = None
+
+        packets.regenerate_packet(packet, entries, packet_expenses, per_diem_days=per_diem_days)
 
         if action == "approve":
             packet.approval_status = "approved"
             packet.approved_at = datetime.utcnow()
             db.session.commit()
-
-            if packet.xero_invoice_id:
-                status = xero_integration.update_draft_invoice_hours(
-                    client_id=current_app.config["XERO_CLIENT_ID"],
-                    client_secret=current_app.config["XERO_CLIENT_SECRET"],
-                    invoice_id=packet.xero_invoice_id,
-                    contractor_name=assignment.contractor.name,
-                    week_start=packet.week_start,
-                    week_end=packet.week_end,
-                    hours=packet.total_hours,
-                    billing_rate=float(assignment.billing_rate),
-                )
-                if status == "updated":
-                    packet.xero_invoice_status = "draft_created"
-                db.session.commit()
-
             flash("Packet approved and locked -- the contractor can no longer edit this week.", "success")
         else:
             db.session.commit()
-            flash("Packet updated.", "success")
+            flash("Packet updated and PDF regenerated.", "success")
 
         return redirect(url_for("admin.packet_detail", packet_id=packet.id))
+
+    figures = billing.compute_week(assignment, entries, packet_expenses, packet.per_diem_days)
 
     return render_template(
         "admin_packet_detail.html",
@@ -308,7 +323,54 @@ def packet_detail(packet_id):
         assignment=assignment,
         entries=entries,
         expenses=packet_expenses,
+        figures=figures,
+        categories=list(billing.EXPENSE_CATEGORIES.keys()),
     )
+
+
+def _parse_time(raw):
+    """'08:00' from an <input type=time> -> datetime.time, else None."""
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%H:%M").time()
+    except ValueError:
+        return None
+
+
+@admin_bp.route("/packets/<int:packet_id>/regenerate", methods=["POST"])
+@login_required
+def regenerate_packet_now(packet_id):
+    """Rebuild a packet's PDF (and Xero draft) without changing any figures --
+    handy after updating a logo or assignment billing details."""
+    _require_admin()
+    packet = WeeklyPacket.query.get_or_404(packet_id)
+    entries, expenses = packets.week_rows(packet.assignment, packet.week_start, packet.week_end)
+    packets.regenerate_packet(packet, entries, expenses, per_diem_days=packet.per_diem_days)
+    db.session.commit()
+    flash("PDF regenerated.", "success")
+    return redirect(url_for("admin.packet_detail", packet_id=packet.id))
+
+
+@admin_bp.route("/assignments/<int:assignment_id>/generate-now", methods=["POST"])
+@login_required
+def generate_packet_now(assignment_id):
+    """Build this week's packet on demand instead of waiting for Sunday night."""
+    _require_admin()
+    assignment = Assignment.query.get_or_404(assignment_id)
+    monday, sunday = week_bounds()
+    existing = WeeklyPacket.query.filter_by(assignment_id=assignment.id, week_start=monday).first()
+    if existing:
+        flash("This week's packet already exists -- open it to regenerate.", "error")
+        return redirect(url_for("admin.packet_detail", packet_id=existing.id))
+    entries, expenses = packets.week_rows(assignment, monday, sunday)
+    if not entries and not expenses:
+        flash("Nothing logged this week yet for that assignment.", "error")
+        return redirect(url_for("admin.contractors"))
+    packet = packets.create_packet(assignment, monday, sunday)
+    db.session.commit()
+    flash("Packet generated.", "success")
+    return redirect(url_for("admin.packet_detail", packet_id=packet.id))
 
 
 @admin_bp.route("/reports")

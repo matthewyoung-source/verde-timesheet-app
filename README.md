@@ -1,6 +1,6 @@
 # Verde Solutions - Contractor Timesheet & Expense App
 
-A working prototype that lets your placed contractors log in, submit their weekly hours, and upload photos of expense receipts (with the dollar amount auto-read off the photo). Every Sunday night it automatically builds a combined timesheet + expense PDF for each contractor/client, and if Xero is connected it also creates a draft client invoice for that week's hours (expenses are not put on the invoice).
+A working prototype that lets your placed contractors log in, submit their weekly hours, and upload photos of expense receipts (with the dollar amount auto-read off the photo). Every Sunday night it automatically builds a combined timesheet + expense PDF for each contractor/client, and if Xero is connected it also creates a draft client invoice for that week laid out the way Verde bills: Regular Hours, Overtime, Per Diem, then one line per expense type.
 
 This has been built and tested end to end in a sandbox environment. What is left is deployment (putting it somewhere it runs all the time, reachable from anywhere) and, if you want it, connecting your Xero account.
 
@@ -71,7 +71,22 @@ Total cost: about $7/month for the web app + $6/month for the database + a small
 3. Give those two values to me (or set them as `XERO_CLIENT_ID` / `XERO_CLIENT_SECRET` in the app's environment yourself).
 4. Click "Connect to Xero" in the admin dashboard and approve access.
 
-From then on, every Sunday's job will also create a draft invoice in Xero (hours worked x that contractor's billing rate), which lands in your Xero drafts for you to review before it's sent -- nothing goes out automatically.
+From then on, every Sunday's job will also create a draft invoice in Xero, which lands in your Xero drafts for you to review before it's sent -- nothing goes out automatically.
+
+### How the draft invoice is built (Sep 2026)
+
+Each draft mirrors Verde's real invoices (e.g. INV177):
+
+| Line | Qty | Unit price | Xero item / account |
+|---|---|---|---|
+| Regular Hours | hours up to 40 | assignment billing rate | RH / 4100 |
+| Overtime | hours over 40 | overtime rate (1.5x unless set) | OT / 4140 |
+| Per Diem | per diem days (default 7) | per diem billed to client | PD / 4150 |
+| Fuel, Rental, ... | 1 | all receipts of that type summed | Fuel, Rental, 12222 / 4160 |
+
+The reference is `<prefix>_<week-ending date>`, e.g. `VerdeCC_Abner_Bell_09.06.2026`, due date 30 days after the invoice date, and the `verde2026` branding theme is applied when it exists in Xero. All of the per-assignment inputs (overtime rate, per diem rates and days, unpaid break, PO #, reference prefix) live under Contractors -> Billing & invoice details. On the packet screen you can adjust times, hours, expense types and the per diem day count for one week before approving; saving regenerates the PDF and updates the Xero draft.
+
+If you connected Xero before September 2026, disconnect and reconnect once: the branding theme lookup needs the `accounting.settings.read` scope, which was added to the connect flow.
 
 ## Notes on the OCR (auto-read receipt amounts)
 
@@ -83,6 +98,8 @@ It reads the amount off the photo using on-device OCR (no per-scan cost, no exte
 - `contractor.py` / `admin.py` / `auth.py` - the three areas of the app
 - `pdf_generator.py` - builds the weekly PDF
 - `ocr.py` - reads the receipt amount
-- `xero_integration.py` - Xero connect + draft invoice creation
+- `billing.py` - turns a week's hours and expenses into billing figures and invoice lines (shared by the PDF and Xero)
+- `packets.py` - builds a WeeklyPacket: PDF + figures + Xero draft (used by the Sunday job and the admin screen)
+- `xero_integration.py` - Xero connect + draft invoice creation/update
 - `scheduler_jobs.py` - the Sunday-night job
 - `seed.py` - one-time setup of your admin login and a sample contractor/client

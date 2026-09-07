@@ -25,6 +25,21 @@ STATEMENTS = [
     "ALTER TABLE weekly_packet ADD COLUMN client_approval_status VARCHAR(20) DEFAULT 'not_required' NOT NULL",
     "ALTER TABLE weekly_packet ADD COLUMN client_approved_at TIMESTAMP",
     "ALTER TABLE weekly_packet ADD COLUMN client_approval_note VARCHAR(500)",
+    # Invoicing detail (Sep 2026): per diem, overtime, PO / reference, clock times.
+    "ALTER TABLE assignment ADD COLUMN overtime_rate NUMERIC(10, 2)",
+    "ALTER TABLE assignment ADD COLUMN per_diem_bill_rate NUMERIC(10, 2)",
+    "ALTER TABLE assignment ADD COLUMN per_diem_contractor_rate NUMERIC(10, 2)",
+    "ALTER TABLE assignment ADD COLUMN per_diem_days INTEGER DEFAULT 7 NOT NULL",
+    "ALTER TABLE assignment ADD COLUMN daily_break_hours NUMERIC(4, 2) DEFAULT 0 NOT NULL",
+    "ALTER TABLE assignment ADD COLUMN po_number VARCHAR(100)",
+    "ALTER TABLE assignment ADD COLUMN invoice_reference_prefix VARCHAR(100)",
+    "ALTER TABLE timesheet_entry ADD COLUMN start_time TIME",
+    "ALTER TABLE timesheet_entry ADD COLUMN end_time TIME",
+    "ALTER TABLE expense ADD COLUMN category VARCHAR(50)",
+    "ALTER TABLE weekly_packet ADD COLUMN regular_hours NUMERIC(6, 2)",
+    "ALTER TABLE weekly_packet ADD COLUMN overtime_hours NUMERIC(6, 2)",
+    "ALTER TABLE weekly_packet ADD COLUMN per_diem_days INTEGER",
+    "ALTER TABLE weekly_packet ADD COLUMN xero_reference VARCHAR(150)",
 ]
 
 

@@ -1,34 +1,23 @@
-import os
 from datetime import date
 from zoneinfo import ZoneInfo
 
 from extensions import db
-from models import Assignment, TimesheetEntry, Expense, WeeklyPacket, User
-from pdf_generator import build_weekly_pdf
+from models import Assignment, TimesheetEntry, WeeklyPacket, User
 from utils import week_bounds
 import notifications
-import xero_integration
+import packets
 
 
 def run_weekly_packet_job(app):
     """Runs every Sunday night: for every active assignment with at least
-    one timesheet entry or expense logged this week, build the combined
-    PDF and (if Xero is connected) create a draft invoice for hours only."""
+    one timesheet entry or expense logged this week, build the Verde packet
+    PDF and (if Xero is connected) create the matching draft invoice."""
     with app.app_context():
         monday, sunday = week_bounds(date.today())
-        client_id = app.config["XERO_CLIENT_ID"]
-        client_secret = app.config["XERO_CLIENT_SECRET"]
-
         assignments = Assignment.query.filter_by(active=True).all()
 
         for assignment in assignments:
-            entries = assignment.timesheet_entries.filter(
-                TimesheetEntry.work_date >= monday, TimesheetEntry.work_date <= sunday
-            ).all()
-            expenses = assignment.expenses.filter(
-                Expense.expense_date >= monday, Expense.expense_date <= sunday
-            ).all()
-
+            entries, expenses = packets.week_rows(assignment, monday, sunday)
             if not entries and not expenses:
                 continue
 
@@ -38,65 +27,7 @@ def run_weekly_packet_job(app):
             if existing_packet:
                 continue  # already generated for this week
 
-            filename = f"timesheet_{assignment.contractor.name.replace(' ', '_')}_{assignment.client.name.replace(' ', '_')}_{monday.isoformat()}.pdf"
-            output_path = os.path.join(app.config["PDF_FOLDER"], filename)
-
-            expense_rows = []
-            for exp in expenses:
-                photo_path = os.path.join(app.config["UPLOAD_FOLDER"], exp.photo_filename)
-                expense_rows.append(
-                    type("ExpenseRow", (), {
-                        "expense_date": exp.expense_date,
-                        "amount": exp.amount,
-                        "description": exp.description,
-                        "photo_path": photo_path,
-                    })
-                )
-
-            totals = build_weekly_pdf(
-                output_path=output_path,
-                company_name=app.config["COMPANY_NAME"],
-                contractor_name=assignment.contractor.name,
-                client_name=assignment.client.name,
-                role_title=assignment.role_title,
-                week_start=monday,
-                week_end=sunday,
-                billing_rate=float(assignment.billing_rate),
-                timesheet_entries=entries,
-                expenses=expense_rows,
-            )
-
-            invoice_id, invoice_status = xero_integration.create_draft_invoice(
-                client_id=client_id,
-                client_secret=client_secret,
-                client_name=assignment.client.name,
-                client_xero_contact_id=assignment.client.xero_contact_id,
-                contractor_name=assignment.contractor.name,
-                week_start=monday,
-                week_end=sunday,
-                hours=totals["total_hours"],
-                billing_rate=float(assignment.billing_rate),
-            )
-
-            # Verde itself doesn't use this (Matthew approves verbally on a
-            # Monday call), but for a resold instance where the client is
-            # flagged for sign-off, mark this packet as awaiting their response.
-            client_approval_status = (
-                "pending" if assignment.client.requires_client_approval else "not_required"
-            )
-
-            packet = WeeklyPacket(
-                assignment_id=assignment.id,
-                week_start=monday,
-                week_end=sunday,
-                pdf_filename=filename,
-                total_hours=totals["total_hours"],
-                total_expenses=totals["total_expenses"],
-                xero_invoice_id=invoice_id,
-                xero_invoice_status=invoice_status,
-                client_approval_status=client_approval_status,
-            )
-            db.session.add(packet)
+            packets.create_packet(assignment, monday, sunday)
 
         db.session.commit()
 

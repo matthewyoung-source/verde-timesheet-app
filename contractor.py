@@ -12,6 +12,7 @@ from extensions import db
 from models import Assignment, TimesheetEntry, Expense, WeeklyPacket
 from ocr import extract_amount_from_receipt
 from utils import week_bounds
+import billing
 
 contractor_bp = Blueprint("contractor", __name__, url_prefix="/my")
 
@@ -87,26 +88,37 @@ def timesheet(assignment_id):
 
         for day in days:
             key = day.isoformat()
+            start_t = _parse_time(request.form.get(f"start_{key}", ""))
+            end_t = _parse_time(request.form.get(f"end_{key}", ""))
             hours_raw = request.form.get(f"hours_{key}", "").strip()
             notes = request.form.get(f"notes_{key}", "").strip()
 
-            if not hours_raw:
+            # Start + end times win; otherwise fall back to a typed hours figure.
+            hours = None
+            if start_t and end_t:
+                hours = billing.hours_from_times(start_t, end_t, assignment.daily_break_hours)
+            elif hours_raw:
+                try:
+                    hours = float(hours_raw)
+                except ValueError:
+                    hours = None
+                start_t = end_t = None
+
+            if hours is None:
                 if day in existing:
                     db.session.delete(existing[day])
                 continue
 
-            try:
-                hours = float(hours_raw)
-            except ValueError:
-                continue
-
             if day in existing:
                 existing[day].hours = hours
+                existing[day].start_time = start_t
+                existing[day].end_time = end_t
                 existing[day].notes = notes
             else:
                 db.session.add(
                     TimesheetEntry(
-                        assignment_id=assignment.id, work_date=day, hours=hours, notes=notes
+                        assignment_id=assignment.id, work_date=day, hours=hours,
+                        start_time=start_t, end_time=end_t, notes=notes,
                     )
                 )
 
@@ -118,6 +130,16 @@ def timesheet(assignment_id):
         "timesheet_form.html", assignment=assignment, days=days, existing=existing,
         monday=monday, sunday=sunday, locked=locked,
     )
+
+
+def _parse_time(raw):
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%H:%M").time()
+    except ValueError:
+        return None
 
 
 @contractor_bp.route("/expenses/<int:assignment_id>", methods=["GET", "POST"])
@@ -141,6 +163,9 @@ def expenses(assignment_id):
         photo = request.files.get("photo")
         expense_date_raw = request.form.get("expense_date")
         description = request.form.get("description", "").strip()
+        category = request.form.get("category", "").strip()
+        if category not in billing.EXPENSE_CATEGORIES:
+            category = "Other"
         confirmed_amount = request.form.get("amount", "").strip()
 
         if not photo or photo.filename == "" or not _allowed_file(photo.filename):
@@ -179,6 +204,7 @@ def expenses(assignment_id):
             ocr_confidence=confidence,
             is_amount_confirmed=is_confirmed,
             description=description,
+            category=category,
         )
         db.session.add(expense)
         db.session.commit()
@@ -192,6 +218,7 @@ def expenses(assignment_id):
     return render_template(
         "expense_form.html", assignment=assignment, monday=monday, sunday=sunday,
         week_expenses=week_expenses, locked=locked,
+        categories=list(billing.EXPENSE_CATEGORIES.keys()),
     )
 
 
