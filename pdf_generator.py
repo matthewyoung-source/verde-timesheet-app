@@ -15,7 +15,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-GREEN = colors.HexColor("#2f6f3e")  # Verde Solutions brand-ish green
+GREEN = colors.HexColor("#1f7a5a")  # Verde Solutions brand green (matches the website)
 
 
 def build_weekly_pdf(output_path, company_name, contractor_name, client_name,
