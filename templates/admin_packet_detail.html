@@ -24,7 +24,8 @@
     {% if packet.xero_invoice_status == 'draft_created' %}<span class="pill green">Xero draft created</span>
     {% elif packet.xero_invoice_status == 'not_connected' %}<span class="pill grey">Xero not connected</span>
     {% else %}<span class="pill critical">Xero sync failed</span>{% endif %}
-    &middot; <a href="{{ url_for('admin.download_packet', packet_id=packet.id) }}">Download PDF</a>
+    &middot; <a href="{{ url_for('admin.download_packet', packet_id=packet.id) }}">Download timesheet PDF</a>
+    {% if packet.xero_invoice_id %}&middot; <a href="{{ url_for('admin.download_full_packet', packet_id=packet.id) }}"><strong>Download full packet</strong> (Xero invoice + timesheet + receipts)</a>{% endif %}
   </p>
 </div>
 
