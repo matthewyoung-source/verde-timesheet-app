@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from extensions import db
-from models import User, Client, Assignment, WeeklyPacket, TimesheetEntry, Expense, WeekSubmission
+from models import User, Client, Assignment, WeeklyPacket, TimesheetEntry, Expense, WeekSubmission, JobRun
 from utils import week_bounds, business_today
 import billing
 import packets
@@ -30,6 +30,18 @@ def _generate_temp_password():
     return f"{secrets.choice(words)}-{secrets.choice(words)}-{secrets.randbelow(9000) + 1000}"
 
 
+@admin_bp.route("/run-packets", methods=["POST"])
+@login_required
+def run_packets_now():
+    """Build this week's packets right now instead of waiting for Sunday
+    night. Safe to press twice: weeks that already have a packet are skipped."""
+    _require_admin()
+    from scheduler_jobs import run_packets
+    result = run_packets(current_app._get_current_object(), source="manual")
+    flash(("Packets built. " if result.ok else "Packet run had problems: ") + result.message, "success" if result.ok else "error")
+    return redirect(url_for("admin.dashboard"))
+
+
 @admin_bp.route("/")
 @login_required
 def dashboard():
@@ -43,6 +55,8 @@ def dashboard():
     )
     contractors = User.query.filter_by(role="contractor").order_by(User.name).all()
     xero_connected = xero_integration.is_connected()
+    last_packets = JobRun.latest_finished("weekly_packets")
+    last_reminder = JobRun.latest_finished("daily_reminder")
 
     # Who has logged what this week, one row per active assignment.
     days = [monday + timedelta(days=i) for i in range(7)]
@@ -82,6 +96,7 @@ def dashboard():
 
     return render_template(
         "admin_dashboard.html",
+        last_packets=last_packets, last_reminder=last_reminder,
         contractors=contractors,
         recent_packets=recent_packets,
         pending_packets=pending_packets,

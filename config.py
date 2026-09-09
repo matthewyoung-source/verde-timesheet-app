@@ -18,6 +18,22 @@ def _normalized_database_url():
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+
+    # Session cookie hardening. SECURE is on whenever the public URL is
+    # https (Render), and off for local http runs so login still works.
+    SESSION_COOKIE_SECURE = os.environ.get("APP_BASE_URL", "").startswith("https://")
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
+    REMEMBER_COOKIE_HTTPONLY = True
+    # Forged-request protection (Flask-WTF). Tokens last the whole session
+    # so a contractor who leaves a form open for an hour isn't bounced.
+    WTF_CSRF_TIME_LIMIT = None
+    # Login attempts per IP before the app makes them wait.
+    LOGIN_RATE_LIMIT = os.environ.get("LOGIN_RATE_LIMIT", "10 per minute")
+    RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+    # Where "something broke" emails go. Defaults to the first admin's email.
+    ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "")
     SQLALCHEMY_DATABASE_URI = _normalized_database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

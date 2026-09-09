@@ -366,7 +366,15 @@ def expenses(assignment_id):
         filename = f"{stem}.jpg"
         save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
         if not _normalise_photo(raw_path, save_path):
-            filename, save_path = raw_name, raw_path
+            # Not something Pillow can open, so not a photo: a renamed PDF,
+            # a screenshot of nothing, or a corrupt file. Bin it and say so.
+            for path in (raw_path, save_path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+            flash("That file doesn't look like a photo. Please take a picture of the receipt and try again.", "error")
+            return redirect(url_for("contractor.expenses", assignment_id=assignment.id))
 
         ocr_amount, confidence = extract_amount_from_receipt(save_path)
 

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 
-from extensions import db
+from extensions import db, limiter
 from models import User
 import notifications
 
@@ -9,6 +9,7 @@ auth_bp = Blueprint("auth", __name__)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit(lambda: current_app.config["LOGIN_RATE_LIMIT"], methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for(current_user.home_endpoint()))
@@ -28,6 +29,7 @@ def login():
 
 
 @auth_bp.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()

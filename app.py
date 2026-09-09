@@ -1,8 +1,10 @@
 import os
-from flask import Flask, send_from_directory, abort, redirect, url_for
+from flask import Flask, send_from_directory, abort, redirect, url_for, request, flash
 from flask_login import login_required, current_user
+from flask_wtf.csrf import CSRFError
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from extensions import db, login_manager, scheduler
+from extensions import db, login_manager, scheduler, csrf, limiter
 
 from config import Config
 from models import User, Expense
@@ -15,9 +17,30 @@ def create_app(config_class=Config):
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs(app.config["PDF_FOLDER"], exist_ok=True)
 
+    # Render terminates TLS and forwards the real client IP; trust one hop
+    # so rate limits key on the visitor, not the load balancer.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
+    csrf.init_app(app)
+    limiter.init_app(app)
+
+    @app.errorhandler(CSRFError)
+    def csrf_failed(err):
+        flash("That page had been open too long. Please try again.", "error")
+        return redirect(request.referrer or url_for("auth.login"))
+
+    @app.errorhandler(429)
+    def too_many(err):
+        flash("Too many attempts. Wait a minute and try again.", "error")
+        return redirect(url_for("auth.login"))
+
+    @app.errorhandler(413)
+    def too_big(err):
+        flash("That photo is too large (16 MB max). Try again with a smaller one.", "error")
+        return redirect(request.referrer or url_for("auth.login"))
 
     @login_manager.user_loader
     def load_user(user_id):

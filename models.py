@@ -250,3 +250,22 @@ class WeekSubmission(db.Model):
     __table_args__ = (
         db.UniqueConstraint("assignment_id", "week_start", name="uq_submission_week"),
     )
+
+
+class JobRun(db.Model):
+    """One row per background job run (Sunday packets, daily reminder) so
+    the admin can see when it last ran and whether it worked."""
+    __tablename__ = "job_run"
+
+    id = db.Column(db.Integer, primary_key=True)
+    job = db.Column(db.String(40), nullable=False, index=True)
+    source = db.Column(db.String(20), default="scheduled")
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    finished_at = db.Column(db.DateTime, nullable=True)
+    ok = db.Column(db.Boolean, nullable=True)  # None while running
+    message = db.Column(db.String(500), nullable=True)
+
+    @staticmethod
+    def latest_finished(job):
+        return (JobRun.query.filter(JobRun.job == job, JobRun.ok.isnot(None))
+                .order_by(JobRun.started_at.desc()).first())
