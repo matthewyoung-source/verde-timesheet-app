@@ -45,6 +45,13 @@ def create_app(config_class=Config):
             return {"pending_badge": n or None}
         return {"pending_badge": None}
 
+    @app.template_filter("local_time")
+    def local_time(value, fmt="%b %-d, %-I:%M %p"):
+        """Show a stored UTC timestamp in the business timezone (Pacific)."""
+        from utils import to_local
+        local = to_local(value)
+        return local.strftime(fmt) if local else ""
+
     @app.template_filter("money")
     def money(value):
         try:

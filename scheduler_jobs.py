@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 from extensions import db
 from models import Assignment, TimesheetEntry, WeeklyPacket, User, WeekSubmission
-from utils import week_bounds
+from utils import week_bounds, business_today
 import notifications
 import packets
 
@@ -13,7 +13,7 @@ def run_weekly_packet_job(app):
     one timesheet entry or expense logged this week, build the Verde packet
     PDF and (if Xero is connected) create the matching draft invoice."""
     with app.app_context():
-        monday, sunday = week_bounds(date.today())
+        monday, sunday = week_bounds(business_today())
         assignments = Assignment.query.filter_by(active=True).all()
 
         for assignment in assignments:
@@ -39,7 +39,7 @@ def run_daily_reminder_job(app):
         if not notifications.is_configured(app):
             return  # nothing to do until SMTP is set up
 
-        today = date.today()
+        today = business_today()
         monday, _ = week_bounds(today)
         contractors = User.query.filter_by(role="contractor", active=True).all()
 
@@ -82,14 +82,16 @@ def run_daily_reminder_job(app):
 
 
 def register_jobs(app, scheduler):
-    # Sunday at 11:50 PM -- captures the whole Monday-Sunday work week,
-    # including any hours logged later that same Sunday.
+    # Sunday at 11:50 PM Pacific -- captures the whole Monday-Sunday work
+    # week, including any hours logged later that same Sunday. Pinned to the
+    # business timezone; the server clock is UTC.
     scheduler.add_job(
         func=lambda: run_weekly_packet_job(app),
         trigger="cron",
         day_of_week="sun",
         hour=23,
         minute=50,
+        timezone=ZoneInfo(app.config["BUSINESS_TIMEZONE"]),
         id="weekly_packet_job",
         replace_existing=True,
     )

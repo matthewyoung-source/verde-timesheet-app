@@ -11,7 +11,7 @@ from sqlalchemy import func
 
 from extensions import db
 from models import User, Client, Assignment, WeeklyPacket, TimesheetEntry, Expense, WeekSubmission
-from utils import week_bounds
+from utils import week_bounds, business_today
 import billing
 import packets
 import xero_integration
@@ -34,7 +34,7 @@ def _generate_temp_password():
 @login_required
 def dashboard():
     _require_admin()
-    today = date.today()
+    today = business_today()
     monday, sunday = week_bounds(today)
     recent_packets = WeeklyPacket.query.order_by(WeeklyPacket.week_start.desc(), WeeklyPacket.id.desc()).limit(8).all()
     pending_packets = (
@@ -276,7 +276,7 @@ def end_assignment(assignment_id):
     _require_admin()
     assignment = Assignment.query.get_or_404(assignment_id)
     assignment.active = False
-    assignment.end_date = date.today()
+    assignment.end_date = business_today()
     db.session.commit()
     flash(f"Ended {assignment.contractor.name}'s assignment with {assignment.client.name}.", "success")
     return redirect(url_for("admin.contractors"))

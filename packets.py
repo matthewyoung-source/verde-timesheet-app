@@ -15,6 +15,7 @@ from models import TimesheetEntry, Expense, WeeklyPacket
 from pdf_generator import build_weekly_pdf
 import billing
 import xero_integration
+from utils import business_today
 
 
 class _ExpenseRow:
@@ -82,7 +83,7 @@ def create_packet(assignment, week_start, week_end):
         client_xero_contact_id=assignment.client.xero_contact_id,
         lines=figures["lines"],
         reference=reference,
-        invoice_date=date.today(),
+        invoice_date=business_today(),
     )
 
     client_approval_status = (
@@ -137,7 +138,7 @@ def regenerate_packet(packet, entries, expenses, per_diem_days=None):
             client_xero_contact_id=assignment.client.xero_contact_id,
             lines=figures["lines"],
             reference=reference,
-            invoice_date=date.today(),
+            invoice_date=business_today(),
         )
         packet.xero_invoice_id = invoice_id
         packet.xero_invoice_status = invoice_status

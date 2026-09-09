@@ -30,7 +30,7 @@ except Exception:
 from extensions import db
 from models import Assignment, TimesheetEntry, Expense, WeeklyPacket, WeekSubmission
 from ocr import extract_amount_from_receipt
-from utils import week_bounds
+from utils import week_bounds, business_today
 import billing
 import packets
 
@@ -98,7 +98,7 @@ def _parse_date(raw):
 
 def week_state(assignment, monday, today=None):
     """Everything a screen needs to know about one assignment for one week."""
-    today = today or date.today()
+    today = today or business_today()
     sunday = monday + timedelta(days=6)
     this_monday, _ = week_bounds(today)
     days = [monday + timedelta(days=i) for i in range(7)]
@@ -189,7 +189,7 @@ def _back_to_week(assignment, monday):
 @login_required
 def dashboard():
     _require_contractor()
-    today = date.today()
+    today = business_today()
     monday, _ = week_bounds(today)
     assignments = _active_assignments()
     weeks = [week_state(a, monday, today) for a in assignments]
@@ -332,7 +332,7 @@ def receipts():
 def expenses(assignment_id):
     _require_contractor()
     assignment = _own_assignment(assignment_id)
-    today = date.today()
+    today = business_today()
     this_monday, _ = week_bounds(today)
 
     if request.method == "POST":
@@ -469,7 +469,7 @@ def delete_expense(expense_id):
 @login_required
 def history():
     _require_contractor()
-    today = date.today()
+    today = business_today()
     this_monday, _ = week_bounds(today)
     assignments = current_user.assignments.order_by(Assignment.active.desc(), Assignment.id).all()
 

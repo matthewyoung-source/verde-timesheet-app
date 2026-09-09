@@ -53,4 +53,7 @@ class Config:
     # logged anything yet. Pacific time, matches how Matthew runs the business.
     REMINDER_HOUR = int(os.environ.get("REMINDER_HOUR", "17"))
     REMINDER_MINUTE = int(os.environ.get("REMINDER_MINUTE", "0"))
-    REMINDER_TIMEZONE = os.environ.get("REMINDER_TIMEZONE", "America/Los_Angeles")
+    # The app's clock. "Today", the current week, the Sunday packet run and
+    # every timestamp shown on screen all use this zone, not the server's UTC.
+    BUSINESS_TIMEZONE = os.environ.get("BUSINESS_TIMEZONE", "America/Los_Angeles")
+    REMINDER_TIMEZONE = os.environ.get("REMINDER_TIMEZONE", BUSINESS_TIMEZONE)
