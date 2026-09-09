@@ -17,6 +17,7 @@
         <div><h3>{{ c.name }}</h3><p class="hint">{{ c.email }}{% if not c.active %} &middot; <span class="pill grey">inactive</span>{% endif %}</p></div>
       </div>
       <form method="POST" action="{{ url_for('admin.reset_password', user_id=c.id) }}" onsubmit="return confirm('Generate a new temporary password for {{ c.name }}?');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn ghost small" type="submit">Reset password</button>
       </form>
     </div>
@@ -31,14 +32,17 @@
           </div>
           {% if a.active %}
           <div class="btn-row">
-            <form method="POST" action="{{ url_for('admin.generate_packet_now', assignment_id=a.id) }}"><button class="btn secondary small" type="submit">Generate this week's packet</button></form>
-            <form method="POST" action="{{ url_for('admin.end_assignment', assignment_id=a.id) }}" onsubmit="return confirm('End this assignment? {{ c.name }} will no longer be able to log hours against it.');"><button class="btn danger small" type="submit">End assignment</button></form>
+            <form method="POST" action="{{ url_for('admin.generate_packet_now', assignment_id=a.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn secondary small" type="submit">Generate this week's packet</button></form>
+            <form method="POST" action="{{ url_for('admin.end_assignment', assignment_id=a.id) }}" onsubmit="return confirm('End this assignment? {{ c.name }} will no longer be able to log hours against it.');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn danger small" type="submit">End assignment</button></form>
           </div>
           {% endif %}
         </div>
         <details>
           <summary>Billing &amp; invoice details</summary>
           <form method="POST" action="{{ url_for('admin.update_billing', assignment_id=a.id) }}" style="margin-top:10px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="grid-2">
               <div><label>Billing rate ($/hr)</label><input type="number" step="0.01" name="billing_rate" value="{{ a.billing_rate }}"></div>
               <div><label>Overtime rate ($/hr, blank = 1.5x)</label><input type="number" step="0.01" name="overtime_rate" value="{{ a.overtime_rate if a.overtime_rate is not none else '' }}" placeholder="{{ '%.2f'|format(a.effective_overtime_rate()) }}"></div>
@@ -59,6 +63,7 @@
     <details>
       <summary>Add a client assignment</summary>
       <form method="POST" action="{{ url_for('admin.create_assignment') }}" style="margin-top:10px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="contractor_id" value="{{ c.id }}">
         <div class="grid-2">
           <div><label>Client</label><select name="client_id" required>{% for cl in clients %}<option value="{{ cl.id }}">{{ cl.name }}</option>{% endfor %}</select></div>
@@ -82,6 +87,7 @@
   <h3>Add a contractor</h3>
   <p class="hint">They log in with this email. Give them the starting password; they can change it under Account.</p>
   <form method="POST" action="{{ url_for('admin.contractors') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="grid-2">
       <div><label>Name</label><input type="text" name="name" required></div>
       <div><label>Email</label><input type="email" name="email" required></div>

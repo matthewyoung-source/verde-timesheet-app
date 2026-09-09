@@ -27,6 +27,7 @@
 {% else %}
 {% set use_hours = entry and not entry.start_time %}
 <form method="POST" id="day-form" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div id="times-mode" {% if use_hours %}hidden{% endif %}>
     <div class="time-row">
       <div>

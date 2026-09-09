@@ -4,9 +4,17 @@
 <div class="top">
   <div>
     <h1>Overview</h1>
-    <div class="sub">Week of <b>{{ monday.strftime('%b %-d') }} to {{ sunday.strftime('%b %-d') }}</b> &middot; {{ today.strftime('%A, %B %-d') }}</div>
+    <div class="sub">Week of <b>{{ monday.strftime('%b %-d') }} to {{ sunday.strftime('%b %-d') }}</b> &middot; {{ today.strftime('%A, %B %-d') }}
+      &middot; Sunday packet run:
+      {% if last_packets and last_packets.ok %}<span title="{{ last_packets.message }}">OK {{ last_packets.finished_at|local_time('%a %b %-d, %-I:%M %p') }}</span>
+      {% elif last_packets %}<span style="color:var(--status-critical); font-weight:700;" title="{{ last_packets.message }}">problem {{ last_packets.finished_at|local_time('%a %b %-d, %-I:%M %p') }}</span>
+      {% else %}not run yet{% endif %}</div>
   </div>
   <div class="tools">
+    <form method="POST" action="{{ url_for('admin.run_packets_now') }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn secondary small" type="submit">Build this week's packets now</button>
+    </form>
     {% if xero_connected %}<span class="pill green">Xero connected</span>{% else %}<a class="btn small" href="{{ url_for('admin.xero_connect') }}">Connect Xero</a>{% endif %}
   </div>
 </div>

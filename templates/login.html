@@ -6,6 +6,7 @@
   <h1>Welcome back</h1>
   <p class="hint" style="text-align:center;">Sign in to log your hours and receipts.</p>
   <form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>Email</label>
     <input type="email" name="email" required autofocus autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="you@example.com">
     <label>Password</label>

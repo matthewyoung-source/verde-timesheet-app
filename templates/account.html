@@ -12,6 +12,7 @@
   <h3>Email and password</h3>
   <p class="hint">Change either one. Your current password is needed to save.</p>
   <form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>Email</label>
     <input type="email" name="email" required value="{{ current_user.email }}" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false">
 

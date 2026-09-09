@@ -12,6 +12,7 @@
   <div class="card soft"><b>Locked</b><div class="note">This week and last week are both approved, so no more receipts can be added. Ask your contact at Verde if you need one included.</div></div>
 {% else %}
 <form method="POST" enctype="multipart/form-data" class="card" id="receipt-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label class="upload" id="upload-box">
     <input type="file" name="photo" id="photo" accept="image/*,.heic,.heif" capture="environment" required>
     <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
@@ -59,6 +60,7 @@
               <div style="margin-top:6px;"><span class="pill grey">{{ x.ocr_amount|money if x.ocr_amount else 'amount unreadable' }} &middot; locked</span></div>
             {% else %}
               <form method="POST" action="{{ url_for('contractor.confirm_expense_amount', expense_id=x.id) }}" style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <span class="pill warning">{% if x.ocr_amount %}we read {{ x.ocr_amount|money }}{% else %}couldn't read amount{% endif %}</span>
                 <input type="number" step="0.01" min="0" inputmode="decimal" name="amount" value="{{ x.amount if x.amount else '' }}" placeholder="$0.00" style="width:120px; margin-bottom:0; padding:8px 10px;" required>
                 <button class="btn small" type="submit">Confirm</button>
@@ -67,6 +69,7 @@
           </div>
           {% if w.editable %}
           <form method="POST" action="{{ url_for('contractor.delete_expense', expense_id=x.id) }}" onsubmit="return confirm('Remove this receipt?');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn ghost small" type="submit" title="Remove" aria-label="Remove receipt">&times;</button>
           </form>
           {% endif %}

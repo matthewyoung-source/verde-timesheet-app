@@ -59,6 +59,7 @@
     </div>
   {% else %}
     <form method="POST" action="{{ url_for('contractor.submit_week', assignment_id=a.id, monday_str=w.monday.isoformat()) }}" class="card" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div style="flex:1; min-width:180px;">
         <b>Finished for the week?</b>
         <div class="note">Submit once your hours and receipts are all in. {% if w.is_current %}You can keep adding until Sunday night.{% endif %}</div>

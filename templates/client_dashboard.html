@@ -23,6 +23,7 @@
     </div>
     {% if p.client_approval_status == 'pending' %}
       <form method="POST" action="{{ url_for('client.respond', packet_id=p.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Note (optional)</label>
         <input type="text" name="note" placeholder="e.g. looks good, or explain a dispute">
         <div class="btn-row">

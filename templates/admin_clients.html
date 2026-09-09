@@ -14,6 +14,7 @@
     <div class="card-head">
       <div><h3>{{ c.name }}</h3><p class="hint">{{ c.billing_email or 'No billing email on file' }}{% if c.xero_contact_id %} &middot; linked to Xero{% endif %}</p></div>
       <form method="POST" action="{{ url_for('admin.toggle_client_approval', client_id=c.id) }}" style="display:flex; gap:10px; align-items:center;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if c.requires_client_approval %}<span class="pill green">Client sign-off on</span>{% else %}<span class="pill grey">Client sign-off off</span>{% endif %}
         <button class="btn ghost small" type="submit">{{ 'Turn off' if c.requires_client_approval else 'Turn on' }}</button>
       </form>
@@ -22,6 +23,7 @@
     <details>
       <summary>Add a client contact login</summary>
       <form method="POST" action="{{ url_for('admin.create_client_contact', client_id=c.id) }}" style="margin-top:10px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="grid-2">
           <div><label>Contact name</label><input type="text" name="name" required></div>
           <div><label>Email</label><input type="email" name="email" required></div>
@@ -35,6 +37,7 @@
 <div class="card form-card" id="add-client">
   <h3>Add a client</h3>
   <form method="POST" action="{{ url_for('admin.clients') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>Client name</label>
     <input type="text" name="name" required>
     <label>Billing email (optional)</label>

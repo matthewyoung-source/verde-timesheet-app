@@ -27,6 +27,7 @@
 </div>
 
 <form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="grid2">
     <div class="card">
       <div class="card-head"><div><h3>Hours</h3><p class="hint">Times win over the hours figure{% if assignment.daily_break_hours %} (less the {{ assignment.daily_break_hours|hrs }} hr break){% endif %}.</p></div></div>
