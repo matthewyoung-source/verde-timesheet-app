@@ -232,3 +232,21 @@ class WeeklyPacket(db.Model):
 
     def is_locked(self):
         return self.approval_status == "approved"
+
+
+class WeekSubmission(db.Model):
+    """A contractor pressing "Submit week": a signal to Matthew that their
+    hours and receipts for that week are final. It doesn't change the Sunday
+    packet or the Xero draft; it just stops the daily reminders for that week
+    and shows as "Submitted" on the admin side."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey("assignment.id"), nullable=False)
+    week_start = db.Column(db.Date, nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    assignment = db.relationship("Assignment")
+
+    __table_args__ = (
+        db.UniqueConstraint("assignment_id", "week_start", name="uq_submission_week"),
+    )

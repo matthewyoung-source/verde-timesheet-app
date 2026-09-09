@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from extensions import db
-from models import User, Client, Assignment, WeeklyPacket, TimesheetEntry, Expense
+from models import User, Client, Assignment, WeeklyPacket, TimesheetEntry, Expense, WeekSubmission
 from utils import week_bounds
 import billing
 import packets
@@ -34,10 +34,42 @@ def _generate_temp_password():
 @login_required
 def dashboard():
     _require_admin()
-    monday, sunday = week_bounds()
-    recent_packets = WeeklyPacket.query.order_by(WeeklyPacket.generated_at.desc()).limit(20).all()
+    today = date.today()
+    monday, sunday = week_bounds(today)
+    recent_packets = WeeklyPacket.query.order_by(WeeklyPacket.week_start.desc(), WeeklyPacket.id.desc()).limit(8).all()
+    pending_packets = (
+        WeeklyPacket.query.filter_by(approval_status="pending")
+        .order_by(WeeklyPacket.week_start.desc()).all()
+    )
     contractors = User.query.filter_by(role="contractor").order_by(User.name).all()
     xero_connected = xero_integration.is_connected()
+
+    # Who has logged what this week, one row per active assignment.
+    days = [monday + timedelta(days=i) for i in range(7)]
+    submitted = {
+        s.assignment_id: s for s in WeekSubmission.query.filter_by(week_start=monday).all()
+    }
+    week_rows = []
+    for a in Assignment.query.filter_by(active=True).all():
+        entries = a.timesheet_entries.filter(
+            TimesheetEntry.work_date >= monday, TimesheetEntry.work_date <= sunday
+        ).all()
+        by_day = {e.work_date: float(e.hours or 0) for e in entries}
+        expenses = a.expenses.filter(
+            Expense.expense_date >= monday, Expense.expense_date <= sunday
+        ).all()
+        week_rows.append({
+            "assignment": a,
+            "hours": round(sum(by_day.values()), 2),
+            "days": [(d, by_day.get(d)) for d in days],
+            "expense_count": len(expenses),
+            "expense_total": round(sum(float(x.amount or 0) for x in expenses), 2),
+            "unconfirmed": sum(1 for x in expenses if not x.is_amount_confirmed),
+            "submitted": submitted.get(a.id),
+            "last_logged": max((e.work_date for e in entries), default=None),
+        })
+    week_rows.sort(key=lambda r: (r["assignment"].contractor.name, r["assignment"].client.name))
+    expenses_this_week = round(sum(r["expense_total"] for r in week_rows), 2)
 
     active_contractor_count = User.query.filter_by(role="contractor", active=True).count()
     active_assignment_count = Assignment.query.filter_by(active=True).count()
@@ -52,6 +84,10 @@ def dashboard():
         "admin_dashboard.html",
         contractors=contractors,
         recent_packets=recent_packets,
+        pending_packets=pending_packets,
+        week_rows=week_rows,
+        expenses_this_week=expenses_this_week,
+        today=today,
         monday=monday,
         sunday=sunday,
         xero_connected=xero_connected,
@@ -59,6 +95,37 @@ def dashboard():
         active_assignment_count=active_assignment_count,
         pending_approval_count=pending_approval_count,
         hours_this_week=hours_this_week,
+    )
+
+
+@admin_bp.route("/packets")
+@login_required
+def packets_list():
+    """Every weekly packet, newest first, filterable by approval status."""
+    _require_admin()
+    status = request.args.get("status", "all")
+    contractor_id = request.args.get("contractor", type=int)
+    q = WeeklyPacket.query.join(Assignment, WeeklyPacket.assignment_id == Assignment.id)
+    if status == "pending":
+        q = q.filter(WeeklyPacket.approval_status == "pending")
+    elif status == "approved":
+        q = q.filter(WeeklyPacket.approval_status == "approved")
+    elif status == "xero_failed":
+        q = q.filter(WeeklyPacket.xero_invoice_status == "failed")
+    if contractor_id:
+        q = q.filter(Assignment.contractor_id == contractor_id)
+    rows = q.order_by(WeeklyPacket.week_start.desc(), WeeklyPacket.id.desc()).limit(200).all()
+
+    counts = {
+        "all": WeeklyPacket.query.count(),
+        "pending": WeeklyPacket.query.filter_by(approval_status="pending").count(),
+        "approved": WeeklyPacket.query.filter_by(approval_status="approved").count(),
+        "xero_failed": WeeklyPacket.query.filter_by(xero_invoice_status="failed").count(),
+    }
+    contractors = User.query.filter_by(role="contractor").order_by(User.name).all()
+    return render_template(
+        "admin_packets.html", packets=rows, status=status, counts=counts,
+        contractors=contractors, selected_contractor=contractor_id,
     )
 
 

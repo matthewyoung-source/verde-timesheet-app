@@ -33,6 +33,30 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp)
     app.register_blueprint(client_bp)
 
+    from charts import ring_svg
+    app.jinja_env.globals["ring_svg"] = ring_svg
+
+    @app.context_processor
+    def inject_pending_badge():
+        """Sidebar badge: packets waiting for Matthew's approval."""
+        if current_user.is_authenticated and current_user.is_admin():
+            from models import WeeklyPacket
+            n = WeeklyPacket.query.filter_by(approval_status="pending").count()
+            return {"pending_badge": n or None}
+        return {"pending_badge": None}
+
+    @app.template_filter("money")
+    def money(value):
+        try:
+            return f"${float(value or 0):,.2f}"
+        except (TypeError, ValueError):
+            return "$0.00"
+
+    @app.template_filter("hrs")
+    def hrs(value):
+        v = float(value or 0)
+        return f"{v:g}" if v == int(v) else f"{v:.2f}".rstrip("0").rstrip(".")
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login"))

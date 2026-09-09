@@ -2,7 +2,7 @@ from datetime import date
 from zoneinfo import ZoneInfo
 
 from extensions import db
-from models import Assignment, TimesheetEntry, WeeklyPacket, User
+from models import Assignment, TimesheetEntry, WeeklyPacket, User, WeekSubmission
 from utils import week_bounds
 import notifications
 import packets
@@ -40,10 +40,23 @@ def run_daily_reminder_job(app):
             return  # nothing to do until SMTP is set up
 
         today = date.today()
+        monday, _ = week_bounds(today)
         contractors = User.query.filter_by(role="contractor", active=True).all()
 
         for contractor in contractors:
-            if contractor.assignments.filter_by(active=True).first() is None:
+            active = contractor.assignments.filter_by(active=True).all()
+            if not active:
+                continue
+
+            # Pressed "Submit week" already? Then they're done: no nagging.
+            submitted_ids = {
+                s.assignment_id
+                for s in WeekSubmission.query.filter(
+                    WeekSubmission.week_start == monday,
+                    WeekSubmission.assignment_id.in_([a.id for a in active]),
+                ).all()
+            }
+            if all(a.id in submitted_ids for a in active):
                 continue
 
             logged_today = (
