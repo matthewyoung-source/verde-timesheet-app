@@ -51,7 +51,7 @@
       </table>
       </div>
       {% endif %}
-      <p class="note" style="margin-top:12px;"><b>Regular</b> {{ figures.regular_hours|hrs }} @ {{ figures.billing_rate|money }} &middot; <b>Overtime</b> {{ figures.overtime_hours|hrs }} @ {{ figures.overtime_rate|money }}</p>
+      <p class="note" style="margin-top:12px;"><b>Regular</b> {{ figures.regular_hours|hrs }} @ {{ figures.billing_rate|money }} &middot; <b>Overtime</b> {{ figures.overtime_hours|hrs }} @ {{ figures.overtime_rate|money }}{% if figures.pay_rate is not none %}<br><span class="muted">Paid at {{ figures.pay_rate|money }}/hr{% if figures.overtime_hours %}, overtime {{ figures.overtime_pay_rate|money }}/hr{% endif %}</span>{% endif %}</p>
     </div>
 
     <div>
@@ -65,6 +65,24 @@
           </div>
         {% else %}
           <p class="note" style="margin:0;">No per diem on this assignment. Set one under Contractors, Billing &amp; invoice details.</p>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h3>This week's margin</h3><p class="hint">Only you see this. Contractors and clients never do.</p></div></div>
+        {% if figures.contractor_cost is not none %}
+        <table>
+          <tbody>
+            <tr><td>Billed to client</td><td class="num"><b>{{ figures.invoice_total|money }}</b></td></tr>
+            <tr><td class="muted">Contractor pay ({{ figures.regular_hours|hrs }} @ {{ figures.pay_rate|money }}{% if figures.overtime_hours %} + {{ figures.overtime_hours|hrs }} OT @ {{ figures.overtime_pay_rate|money }}{% endif %})</td><td class="num">{{ (figures.pay_regular + figures.pay_overtime)|money }}</td></tr>
+            {% if figures.per_diem_contractor_total %}<tr><td class="muted">Per diem to contractor</td><td class="num">{{ figures.per_diem_contractor_total|money }}</td></tr>{% endif %}
+            {% if figures.total_expenses %}<tr><td class="muted">Receipts reimbursed</td><td class="num">{{ figures.total_expenses|money }}</td></tr>{% endif %}
+            <tr><td>Total cost</td><td class="num">{{ figures.contractor_cost|money }}</td></tr>
+            <tr><td><b>Margin</b></td><td class="num"><b style="color:{{ 'var(--brand)' if figures.margin >= 0 else 'var(--status-critical)' }};">{{ figures.margin|money }}{% if figures.margin_pct is not none %} ({{ figures.margin_pct }}%){% endif %}</b></td></tr>
+          </tbody>
+        </table>
+        {% else %}
+          <p class="note" style="margin:0;">Set a pay rate for this assignment under Contractors, Billing &amp; invoice details, and the margin shows here.</p>
         {% endif %}
       </div>
 
@@ -84,13 +102,13 @@
   </div>
 
   <div class="card">
-    <div class="card-head"><div><h3>Expenses</h3><p class="hint">Same-type receipts combine into one invoice line. Click a photo to open it full size.</p></div></div>
+    <div class="card-head"><div><h3>Expenses</h3><p class="hint">Same-type receipts combine into one invoice line. "Billed to client" is the receipt plus {{ figures.expense_markup|money }} unless you type a figure; blank means default. Click a photo to open it full size.</p></div></div>
     {% if not expenses %}
       <div class="empty">No expenses submitted this week.</div>
     {% else %}
     <div class="table-wrap">
     <table>
-      <thead><tr><th></th><th>Date</th><th>Type</th><th>Description</th><th>Read from photo</th><th>Amount</th></tr></thead>
+      <thead><tr><th></th><th>Date</th><th>Type</th><th>Description</th><th>Read from photo</th><th>Receipt</th><th>Billed to client</th></tr></thead>
       <tbody>
       {% for exp in expenses %}
         <tr>
@@ -100,6 +118,7 @@
           <td>{{ exp.description or '' }}</td>
           <td class="muted small">{{ exp.ocr_amount|money if exp.ocr_amount else 'unreadable' }}{% if exp.is_amount_confirmed %} <span class="pill green">confirmed</span>{% else %} <span class="pill warning">unconfirmed</span>{% endif %}</td>
           <td><input type="number" step="0.01" min="0" name="amount_{{ exp.id }}" value="{{ exp.amount if exp.amount is not none else '' }}" style="width:110px;"></td>
+          <td><input type="number" step="0.01" min="0" name="billed_{{ exp.id }}" value="{{ exp.billed_amount if exp.billed_amount is not none else '' }}" placeholder="{{ '%.2f'|format((exp.amount or 0)|float + figures.expense_markup) if exp.amount else '' }}" style="width:110px;"></td>
         </tr>
       {% endfor %}
       </tbody>

@@ -27,7 +27,7 @@
         <div class="sub-head">
           <div>
             <b>{{ a.client.name }}</b>{% if a.role_title %} <span class="muted">&middot; {{ a.role_title }}</span>{% endif %}
-            <span class="muted small">&middot; {{ a.billing_rate|money }}/hr</span>
+            <span class="muted small">&middot; bill {{ a.billing_rate|money }}/hr{% if a.pay_rate is not none %} &middot; pay {{ a.pay_rate|money }}/hr &middot; <b style="color:var(--brand);">{{ (a.billing_rate - a.pay_rate)|money }}/hr margin ({{ ((a.billing_rate - a.pay_rate) / a.billing_rate * 100)|round(0)|int if a.billing_rate else 0 }}%)</b>{% else %} &middot; <span class="pill warning">no pay rate yet</span>{% endif %}</span>
             {% if a.active %}<span class="pill green">Active</span>{% else %}<span class="pill grey">Ended {{ a.end_date.strftime('%-m/%-d/%Y') if a.end_date else '' }}</span>{% endif %}
           </div>
           {% if a.active %}
@@ -46,6 +46,9 @@
             <div class="grid-2">
               <div><label>Billing rate ($/hr)</label><input type="number" step="0.01" name="billing_rate" value="{{ a.billing_rate }}"></div>
               <div><label>Overtime rate ($/hr, blank = 1.5x)</label><input type="number" step="0.01" name="overtime_rate" value="{{ a.overtime_rate if a.overtime_rate is not none else '' }}" placeholder="{{ '%.2f'|format(a.effective_overtime_rate()) }}"></div>
+              <div><label>Pay rate to contractor ($/hr)</label><input type="number" step="0.01" name="pay_rate" value="{{ a.pay_rate if a.pay_rate is not none else '' }}" placeholder="what they're paid"></div>
+              <div><label>Overtime pay ($/hr, blank = 1.5x pay)</label><input type="number" step="0.01" name="overtime_pay_rate" value="{{ a.overtime_pay_rate if a.overtime_pay_rate is not none else '' }}" placeholder="{{ '%.2f'|format(a.effective_overtime_pay_rate()) if a.pay_rate is not none else '' }}"></div>
+              <div><label>Expense markup ($ added per receipt)</label><input type="number" step="0.01" min="0" name="expense_markup" value="{{ a.expense_markup or 0 }}"></div>
               <div><label>Per diem billed to client ($/day)</label><input type="number" step="0.01" name="per_diem_bill_rate" value="{{ a.per_diem_bill_rate if a.per_diem_bill_rate is not none else '' }}"></div>
               <div><label>Per diem paid to contractor ($/day)</label><input type="number" step="0.01" name="per_diem_contractor_rate" value="{{ a.per_diem_contractor_rate if a.per_diem_contractor_rate is not none else '' }}"></div>
               <div><label>Per diem days per week</label><input type="number" min="0" max="7" name="per_diem_days" value="{{ a.per_diem_days if a.per_diem_days is not none else 7 }}"></div>
@@ -53,7 +56,7 @@
               <div><label>PO # (prints on the packet)</label><input type="text" name="po_number" value="{{ a.po_number or '' }}" placeholder="e.g. VerdeCCAbnerBELLSOLAR"></div>
               <div><label>Xero reference prefix</label><input type="text" name="invoice_reference_prefix" value="{{ a.invoice_reference_prefix or '' }}" placeholder="e.g. VerdeCC_Abner_Bell"></div>
             </div>
-            <p class="note">The Xero reference becomes prefix + week-ending date, e.g. VerdeCC_Abner_Bell_09.06.2026.</p>
+            <p class="note">The Xero reference becomes prefix + week-ending date, e.g. VerdeCC_Abner_Bell_09.06.2026. Pay rate and markup are only ever shown to you; you can also change the billed amount on any single receipt from the packet screen.</p>
             <button class="btn secondary small" type="submit">Save billing details</button>
           </form>
         </details>
@@ -70,6 +73,9 @@
           <div><label>Billing rate ($/hr)</label><input type="number" step="0.01" name="billing_rate" required></div>
           <div><label>Role / title (optional)</label><input type="text" name="role_title" placeholder="e.g. Site Electrician"></div>
           <div><label>Overtime rate ($/hr, blank = 1.5x)</label><input type="number" step="0.01" name="overtime_rate"></div>
+          <div><label>Pay rate to contractor ($/hr)</label><input type="number" step="0.01" name="pay_rate" placeholder="what they're paid"></div>
+          <div><label>Overtime pay ($/hr, blank = 1.5x pay)</label><input type="number" step="0.01" name="overtime_pay_rate"></div>
+          <div><label>Expense markup ($ added per receipt)</label><input type="number" step="0.01" min="0" name="expense_markup" value="0"></div>
           <div><label>Per diem billed to client ($/day)</label><input type="number" step="0.01" name="per_diem_bill_rate"></div>
           <div><label>Per diem paid to contractor ($/day)</label><input type="number" step="0.01" name="per_diem_contractor_rate"></div>
           <div><label>Per diem days per week</label><input type="number" min="0" max="7" name="per_diem_days" value="7"></div>

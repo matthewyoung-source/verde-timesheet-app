@@ -34,9 +34,9 @@
   </a>
   <a class="kpi money" href="{{ url_for('admin.packets_list') }}">
     <div class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></div>
-    <div class="lab">Receipts this week</div>
-    <div class="val">{{ expenses_this_week|money }}</div>
-    <div class="rate">{% set unc = week_rows|sum(attribute='unconfirmed') %}{% if unc %}{{ unc }} amount{{ '' if unc == 1 else 's' }} still to confirm{% else %}all amounts confirmed{% endif %}</div>
+    <div class="lab">Margin this week</div>
+    <div class="val">{% if margin_this_week is not none %}{{ margin_this_week|money }}{% else %}{{ billed_this_week|money }}{% endif %}</div>
+    <div class="rate">{% set unc = week_rows|sum(attribute='unconfirmed') %}{% if margin_this_week is not none %}{{ margin_pct_this_week or 0 }}% on {{ billed_this_week|money }} billed{% elif uncosted %}billed so far; {{ uncosted }} assignment{{ ' needs' if uncosted == 1 else 's need' }} a pay rate{% else %}nothing billed yet{% endif %}{% if unc %} &middot; {{ unc }} receipt{{ '' if unc == 1 else 's' }} to confirm{% endif %}</div>
   </a>
   <a class="kpi attention {{ 'hot' if pending_approval_count else '' }}" href="{{ url_for('admin.packets_list', status='pending') }}">
     <div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>

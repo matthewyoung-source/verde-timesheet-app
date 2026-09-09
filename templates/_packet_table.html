@@ -4,7 +4,7 @@
 {% else %}
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Contractor</th><th>Client</th><th>Week of</th><th class="num">Hours</th><th class="num">Expenses</th><th>Approval</th><th>Xero</th><th></th></tr></thead>
+  <thead><tr><th>Contractor</th><th>Client</th><th>Week of</th><th class="num">Hours</th><th class="num">Expenses</th><th class="num">Billed</th><th class="num">Margin</th><th>Approval</th><th>Xero</th><th></th></tr></thead>
   <tbody>
   {% for p in rows %}
     <tr>
@@ -13,6 +13,8 @@
       <td>{{ p.week_start.strftime('%b %-d') }}</td>
       <td class="num">{{ p.total_hours|hrs }}</td>
       <td class="num">{{ p.total_expenses|money if p.total_expenses else '' }}</td>
+      <td class="num">{{ p.invoice_total|money if p.invoice_total is not none else '' }}</td>
+      <td class="num">{% if p.invoice_total is not none and p.contractor_cost is not none %}<b style="color:var(--brand);">{{ (p.invoice_total - p.contractor_cost)|money }}</b>{% elif p.invoice_total is not none %}<span class="muted small" title="Set a pay rate on the assignment">no pay rate</span>{% endif %}</td>
       <td>{% include "_packet_pills.html" %}</td>
       <td>{% include "_xero_pill.html" %}</td>
       <td style="white-space:nowrap; text-align:right;">

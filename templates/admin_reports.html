@@ -4,7 +4,7 @@
 <div class="top">
   <div>
     <h1>Reports</h1>
-    <div class="sub">Totals from every generated packet. Billed is hours &times; the client rate, before per diem and expenses.</div>
+    <div class="sub">Totals from every generated packet. Invoiced is the full weekly invoice (hours, overtime, per diem and expenses); margin is invoiced minus what the contractor is paid.</div>
   </div>
 </div>
 
@@ -12,7 +12,7 @@
   <a class="kpi attention {{ 'hot' if status_counts.get('pending', 0) else '' }}" href="{{ url_for('admin.packets_list', status='pending') }}"><div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="lab">Awaiting approval</div><div class="val">{{ status_counts.get('pending', 0) }}</div><div class="rate">packets</div></a>
   <a class="kpi hours" href="{{ url_for('admin.packets_list', status='approved') }}"><div class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><div class="lab">Approved &amp; locked</div><div class="val">{{ status_counts.get('approved', 0) }}</div><div class="rate">packets</div></a>
   <div class="kpi people"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg></div><div class="lab">Client sign-offs</div><div class="val">{{ client_approval_counts.get('approved', 0) }}</div><div class="rate">{{ client_approval_counts.get('pending', 0) }} pending &middot; {{ client_approval_counts.get('disputed', 0) }} disputed</div></div>
-  <div class="kpi money"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="lab">Billed to date</div><div class="val">{{ (client_stats|sum(attribute='3'))|money if client_stats else '$0.00' }}</div><div class="rate">hours only, all clients</div></div>
+  <div class="kpi money"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="lab">Invoiced to date</div><div class="val">{{ total_invoiced|money }}</div><div class="rate">{% if total_margin is not none %}<b style="color:var(--brand);">{{ total_margin|money }} margin</b>{% if total_invoiced %} ({{ (total_margin / total_invoiced * 100)|round(1) }}%){% endif %}{% else %}margin needs a pay rate on every assignment{% endif %}</div></div>
 </div>
 
 <div class="grid2">
@@ -20,17 +20,17 @@
     <div class="card-head"><div><h3>By client</h3></div></div>
     {% if not client_stats %}<div class="empty">No packets generated yet.</div>{% else %}
     <div class="table-wrap"><table>
-      <thead><tr><th>Client</th><th class="num">Hours</th><th class="num">Expenses</th><th class="num">Billed</th></tr></thead>
-      <tbody>{% for name, hours, expenses, billed in client_stats %}<tr><td><b>{{ name }}</b></td><td class="num">{{ hours|hrs }}</td><td class="num">{{ expenses|money }}</td><td class="num"><b>{{ billed|money }}</b></td></tr>{% endfor %}</tbody>
+      <thead><tr><th>Client</th><th class="num">Hours</th><th class="num">Expenses</th><th class="num">Invoiced</th><th class="num">Margin</th></tr></thead>
+      <tbody>{% for name, hours, expenses, billed, invoiced, cost, n, n_costed in client_stats %}<tr><td><b>{{ name }}</b></td><td class="num">{{ hours|hrs }}</td><td class="num">{{ expenses|money }}</td><td class="num"><b>{{ invoiced|money }}</b></td><td class="num">{% if n_costed == n and cost is not none %}<b style="color:var(--brand);">{{ (invoiced - cost)|money }}</b>{% if invoiced %} <span class="muted small">{{ ((invoiced - cost) / invoiced * 100)|round(1) }}%</span>{% endif %}{% else %}<span class="muted small">{{ n - n_costed }} of {{ n }} weeks lack a pay rate</span>{% endif %}</td></tr>{% endfor %}</tbody>
     </table></div>
     {% endif %}
   </div>
   <div class="card">
-    <div class="card-head"><div><h3>By contractor</h3><p class="hint">What clients are charged for their time, not what they're paid.</p></div></div>
+    <div class="card-head"><div><h3>By contractor</h3><p class="hint">Invoiced to clients for their weeks, and what's left after paying them.</p></div></div>
     {% if not contractor_stats %}<div class="empty">No packets generated yet.</div>{% else %}
     <div class="table-wrap"><table>
-      <thead><tr><th>Contractor</th><th class="num">Hours</th><th class="num">Billed</th></tr></thead>
-      <tbody>{% for name, hours, billed in contractor_stats %}<tr><td><b>{{ name }}</b></td><td class="num">{{ hours|hrs }}</td><td class="num"><b>{{ billed|money }}</b></td></tr>{% endfor %}</tbody>
+      <thead><tr><th>Contractor</th><th class="num">Hours</th><th class="num">Invoiced</th><th class="num">Margin</th></tr></thead>
+      <tbody>{% for name, hours, billed, invoiced, cost, n, n_costed in contractor_stats %}<tr><td><b>{{ name }}</b></td><td class="num">{{ hours|hrs }}</td><td class="num"><b>{{ invoiced|money }}</b></td><td class="num">{% if n_costed == n and cost is not none %}<b style="color:var(--brand);">{{ (invoiced - cost)|money }}</b>{% if invoiced %} <span class="muted small">{{ ((invoiced - cost) / invoiced * 100)|round(1) }}%</span>{% endif %}{% else %}<span class="muted small">{{ n - n_costed }} of {{ n }} weeks lack a pay rate</span>{% endif %}</td></tr>{% endfor %}</tbody>
     </table></div>
     {% endif %}
   </div>
