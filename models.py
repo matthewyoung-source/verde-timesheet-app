@@ -98,6 +98,11 @@ class Assignment(db.Model):
     contractor_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey("client.id"), nullable=False)
     billing_rate = db.Column(db.Numeric(10, 2), nullable=False)  # $/hour charged to client
+    # What the contractor is paid. Admin-only; never shown to contractors or
+    # clients. Blank pay rate means margin can't be worked out yet.
+    pay_rate = db.Column(db.Numeric(10, 2), nullable=True)            # $/hour paid to contractor
+    overtime_pay_rate = db.Column(db.Numeric(10, 2), nullable=True)   # blank = 1.5x pay_rate
+    expense_markup = db.Column(db.Numeric(10, 2), default=0)          # $ added per receipt when billed to the client
     role_title = db.Column(db.String(150), nullable=True)  # e.g. "Site Electrician"
     active = db.Column(db.Boolean, default=True, nullable=False)
 
@@ -124,6 +129,11 @@ class Assignment(db.Model):
 
     timesheet_entries = db.relationship("TimesheetEntry", back_populates="assignment", lazy="dynamic")
     expenses = db.relationship("Expense", back_populates="assignment", lazy="dynamic")
+
+    def effective_overtime_pay_rate(self):
+        if self.overtime_pay_rate is not None:
+            return float(self.overtime_pay_rate)
+        return round(float(self.pay_rate) * 1.5, 2) if self.pay_rate is not None else None
 
     def effective_overtime_rate(self):
         if self.overtime_rate is not None:
@@ -165,7 +175,8 @@ class Expense(db.Model):
     assignment_id = db.Column(db.Integer, db.ForeignKey("assignment.id"), nullable=False)
     expense_date = db.Column(db.Date, nullable=False)
     photo_filename = db.Column(db.String(300), nullable=False)
-    amount = db.Column(db.Numeric(10, 2), nullable=True)  # confirmed amount
+    amount = db.Column(db.Numeric(10, 2), nullable=True)  # confirmed amount (what the contractor is reimbursed)
+    billed_amount = db.Column(db.Numeric(10, 2), nullable=True)  # what the client is charged; blank = amount + assignment markup
     ocr_amount = db.Column(db.Numeric(10, 2), nullable=True)  # raw auto-read guess
     ocr_confidence = db.Column(db.String(20), nullable=True)  # 'high' / 'low' / 'none'
     is_amount_confirmed = db.Column(db.Boolean, default=False, nullable=False)
@@ -202,6 +213,8 @@ class WeeklyPacket(db.Model):
     pdf_filename = db.Column(db.String(300), nullable=True)
     total_hours = db.Column(db.Numeric(6, 2), nullable=True)
     total_expenses = db.Column(db.Numeric(10, 2), nullable=True)
+    invoice_total = db.Column(db.Numeric(10, 2), nullable=True)    # what the client is billed for the week
+    contractor_cost = db.Column(db.Numeric(10, 2), nullable=True)  # what the contractor is paid for the week (None until a pay rate is set)
     regular_hours = db.Column(db.Numeric(6, 2), nullable=True)
     overtime_hours = db.Column(db.Numeric(6, 2), nullable=True)
     # Admin can change the per diem day count for one week before approving.

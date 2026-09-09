@@ -85,6 +85,29 @@ def dashboard():
     week_rows.sort(key=lambda r: (r["assignment"].contractor.name, r["assignment"].client.name))
     expenses_this_week = round(sum(r["expense_total"] for r in week_rows), 2)
 
+    # Live money view of the week so far: what it will bill, what it costs,
+    # and the margin. Assignments without a pay rate can't be costed yet.
+    billed_this_week = cost_this_week = 0.0
+    uncosted = 0
+    for r in week_rows:
+        if not r["hours"] and not r["expense_count"]:
+            continue
+        a = r["assignment"]
+        fig = billing.compute_week(
+            a,
+            a.timesheet_entries.filter(TimesheetEntry.work_date >= monday, TimesheetEntry.work_date <= sunday).all(),
+            a.expenses.filter(Expense.expense_date >= monday, Expense.expense_date <= sunday).all(),
+        )
+        r["billed"] = fig["invoice_total"]
+        r["margin"] = fig["margin"]
+        billed_this_week += fig["invoice_total"]
+        if fig["contractor_cost"] is None:
+            uncosted += 1
+        else:
+            cost_this_week += fig["contractor_cost"]
+    margin_this_week = round(billed_this_week - cost_this_week, 2) if not uncosted else None
+    margin_pct_this_week = round(margin_this_week / billed_this_week * 100, 1) if margin_this_week is not None and billed_this_week else None
+
     active_contractor_count = User.query.filter_by(role="contractor", active=True).count()
     active_assignment_count = Assignment.query.filter_by(active=True).count()
     pending_approval_count = WeeklyPacket.query.filter_by(approval_status="pending").count()
@@ -97,6 +120,8 @@ def dashboard():
     return render_template(
         "admin_dashboard.html",
         last_packets=last_packets, last_reminder=last_reminder,
+        billed_this_week=round(billed_this_week, 2), margin_this_week=margin_this_week,
+        margin_pct_this_week=margin_pct_this_week, uncosted=uncosted,
         contractors=contractors,
         recent_packets=recent_packets,
         pending_packets=pending_packets,
@@ -228,6 +253,9 @@ def _apply_billing_fields(assignment, form):
     """Reads the invoicing fields shared by the add and edit assignment forms."""
     try:
         assignment.overtime_rate = _money_or_none(form.get("overtime_rate"))
+        assignment.pay_rate = _money_or_none(form.get("pay_rate"))
+        assignment.overtime_pay_rate = _money_or_none(form.get("overtime_pay_rate"))
+        assignment.expense_markup = _money_or_none(form.get("expense_markup")) or 0
         assignment.per_diem_bill_rate = _money_or_none(form.get("per_diem_bill_rate"))
         assignment.per_diem_contractor_rate = _money_or_none(form.get("per_diem_contractor_rate"))
         days = (form.get("per_diem_days") or "").strip()
@@ -376,6 +404,14 @@ def packet_detail(packet_id):
             category = request.form.get(f"category_{exp.id}", "").strip()
             if category:
                 exp.category = category
+            billed_raw = request.form.get(f"billed_{exp.id}", "").strip()
+            if billed_raw == "":
+                exp.billed_amount = None  # back to receipt + default markup
+            else:
+                try:
+                    exp.billed_amount = float(billed_raw)
+                except ValueError:
+                    pass
 
         per_diem_raw = request.form.get("per_diem_days", "").strip()
         per_diem_days = None
@@ -461,12 +497,18 @@ def generate_packet_now(assignment_id):
 def reports():
     _require_admin()
 
+    _backfill_packet_money()
+
     client_stats = (
         db.session.query(
             Client.name,
             func.coalesce(func.sum(WeeklyPacket.total_hours), 0),
             func.coalesce(func.sum(WeeklyPacket.total_expenses), 0),
             func.coalesce(func.sum(WeeklyPacket.total_hours * Assignment.billing_rate), 0),
+            func.coalesce(func.sum(WeeklyPacket.invoice_total), 0),
+            func.sum(WeeklyPacket.contractor_cost),
+            func.count(WeeklyPacket.id),
+            func.count(WeeklyPacket.contractor_cost),
         )
         .join(Assignment, Assignment.client_id == Client.id)
         .join(WeeklyPacket, WeeklyPacket.assignment_id == Assignment.id)
@@ -483,6 +525,10 @@ def reports():
             User.name,
             func.coalesce(func.sum(WeeklyPacket.total_hours), 0),
             func.coalesce(func.sum(WeeklyPacket.total_hours * Assignment.billing_rate), 0),
+            func.coalesce(func.sum(WeeklyPacket.invoice_total), 0),
+            func.sum(WeeklyPacket.contractor_cost),
+            func.count(WeeklyPacket.id),
+            func.count(WeeklyPacket.contractor_cost),
         )
         .join(Assignment, Assignment.contractor_id == User.id)
         .join(WeeklyPacket, WeeklyPacket.assignment_id == Assignment.id)
@@ -508,14 +554,39 @@ def reports():
         .all()
     )
 
+    total_invoiced = float(sum(row[4] for row in client_stats) or 0)
+    total_cost = float(sum((row[5] or 0) for row in client_stats) or 0)
+    all_costed = all(row[6] == row[7] for row in client_stats)
+    total_margin = round(total_invoiced - total_cost, 2) if (client_stats and all_costed) else None
+
     return render_template(
         "admin_reports.html",
+        total_invoiced=total_invoiced, total_margin=total_margin,
         client_stats=client_stats,
         contractor_stats=contractor_stats,
         status_counts=status_counts,
         client_approval_counts=client_approval_counts,
         pending_packets=pending_packets,
     )
+
+
+def _backfill_packet_money():
+    """Packets generated before invoice_total / contractor_cost existed get
+    them worked out from the same figures the PDF used, so Reports covers
+    history too. Cheap: only touches packets that are missing a value."""
+    todo = [
+        pk for pk in WeeklyPacket.query.filter(
+            (WeeklyPacket.invoice_total.is_(None)) | (WeeklyPacket.contractor_cost.is_(None))
+        ).all()
+        if pk.invoice_total is None or pk.assignment.pay_rate is not None
+    ]
+    for packet in todo:
+        entries, expenses = packets.week_rows(packet.assignment, packet.week_start, packet.week_end)
+        fig = billing.compute_week(packet.assignment, entries, expenses, per_diem_days=packet.per_diem_days)
+        packet.invoice_total = fig["invoice_total"]
+        packet.contractor_cost = fig["contractor_cost"]
+    if todo:
+        db.session.commit()
 
 
 @admin_bp.route("/packets/<int:packet_id>/download")

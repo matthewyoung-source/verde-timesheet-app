@@ -24,6 +24,7 @@ class _ExpenseRow:
     def __init__(self, exp, upload_folder):
         self.expense_date = exp.expense_date
         self.amount = exp.amount
+        self.billed_amount = getattr(exp, "billed_amount", None)
         self.description = exp.description
         self.category = exp.category
         self.photo_path = os.path.join(upload_folder, exp.photo_filename) if exp.photo_filename else None
@@ -66,6 +67,8 @@ def apply_figures(packet, figures, reference):
     packet.overtime_hours = figures["overtime_hours"]
     packet.per_diem_days = figures["per_diem_days"]
     packet.total_expenses = figures["total_expenses"]
+    packet.invoice_total = figures["invoice_total"]
+    packet.contractor_cost = figures["contractor_cost"]
     packet.xero_reference = reference
 
 

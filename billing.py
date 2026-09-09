@@ -73,16 +73,25 @@ def compute_week(assignment, entries, expenses, per_diem_days=None):
     per_diem_contractor_rate = _money(assignment.per_diem_contractor_rate)
 
     # Expenses grouped by category (fall back to "Other" for older rows).
+    # "amount" is what the contractor is reimbursed (the receipt); "billed"
+    # is what goes on the client's invoice: a per-receipt figure the admin
+    # can set, else the receipt plus the assignment's default markup.
+    markup = _money(getattr(assignment, "expense_markup", 0))
     groups = OrderedDict()
     total_expenses = 0.0
+    billed_expenses = 0.0
     for exp in expenses:
         amount = _money(exp.amount)
+        billed = billed_expense_amount(exp, markup)
         total_expenses += amount
+        billed_expenses += billed
         category = getattr(exp, "category", None) or "Other"
-        groups.setdefault(category, {"amount": 0.0, "count": 0})
+        groups.setdefault(category, {"amount": 0.0, "billed": 0.0, "count": 0})
         groups[category]["amount"] = round(groups[category]["amount"] + amount, 2)
+        groups[category]["billed"] = round(groups[category]["billed"] + billed, 2)
         groups[category]["count"] += 1
     total_expenses = round(total_expenses, 2)
+    billed_expenses = round(billed_expenses, 2)
 
     # --- invoice lines, in the same order Verde's invoices use ---
     lines = []
@@ -107,17 +116,31 @@ def compute_week(assignment, entries, expenses, per_diem_days=None):
             **PER_DIEM_ITEM,
         })
     for category, info in groups.items():
-        if info["amount"] <= 0:
+        if info["billed"] <= 0:
             continue
         codes = EXPENSE_CATEGORIES.get(category, EXPENSE_CATEGORIES["Other"])
         lines.append({
             "description": category,
             "quantity": 1.0,
-            "unit_amount": info["amount"],
+            "unit_amount": info["billed"],
             **codes,
         })
 
     invoice_total = round(sum(l["quantity"] * l["unit_amount"] for l in lines), 2)
+
+    # --- what it costs Verde: contractor pay + per diem + receipts at cost ---
+    pay_rate = getattr(assignment, "pay_rate", None)
+    pay_rate = float(pay_rate) if pay_rate is not None else None
+    overtime_pay_rate = assignment.effective_overtime_pay_rate() if hasattr(assignment, "effective_overtime_pay_rate") else None
+    per_diem_contractor_total = round(per_diem_contractor_rate * per_diem_days, 2)
+    if pay_rate is not None:
+        pay_regular = round(regular_hours * pay_rate, 2)
+        pay_overtime = round(overtime_hours * (overtime_pay_rate or 0), 2)
+        contractor_cost = round(pay_regular + pay_overtime + per_diem_contractor_total + total_expenses, 2)
+        margin = round(invoice_total - contractor_cost, 2)
+        margin_pct = round(margin / invoice_total * 100, 1) if invoice_total else None
+    else:
+        pay_regular = pay_overtime = contractor_cost = margin = margin_pct = None
 
     return {
         "total_hours": total_hours,
@@ -128,12 +151,33 @@ def compute_week(assignment, entries, expenses, per_diem_days=None):
         "per_diem_days": per_diem_days,
         "per_diem_bill_rate": per_diem_bill_rate,
         "per_diem_contractor_rate": per_diem_contractor_rate,
-        "per_diem_contractor_total": round(per_diem_contractor_rate * per_diem_days, 2),
+        "per_diem_contractor_total": per_diem_contractor_total,
         "expense_groups": groups,
         "total_expenses": total_expenses,
+        "billed_expenses": billed_expenses,
+        "expense_markup": markup,
         "lines": lines,
         "invoice_total": invoice_total,
+        # Admin-only figures. Never put these on the PDF or a contractor page.
+        "pay_rate": pay_rate,
+        "overtime_pay_rate": overtime_pay_rate,
+        "pay_regular": pay_regular,
+        "pay_overtime": pay_overtime,
+        "contractor_cost": contractor_cost,
+        "margin": margin,
+        "margin_pct": margin_pct,
     }
+
+
+def billed_expense_amount(exp, markup=0.0):
+    """Client-facing amount for one receipt: the admin's override if set,
+    else the receipt plus the assignment's per-receipt markup (only when
+    there is a receipt amount at all)."""
+    override = getattr(exp, "billed_amount", None)
+    if override is not None:
+        return _money(override)
+    amount = _money(exp.amount)
+    return round(amount + markup, 2) if amount > 0 else 0.0
 
 
 def xero_reference(assignment, week_end):

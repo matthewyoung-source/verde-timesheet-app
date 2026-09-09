@@ -36,6 +36,13 @@ STATEMENTS = [
     "ALTER TABLE timesheet_entry ADD COLUMN start_time TIME",
     "ALTER TABLE timesheet_entry ADD COLUMN end_time TIME",
     "ALTER TABLE expense ADD COLUMN category VARCHAR(50)",
+    # Pay rate and margin tracking (Sep 2026).
+    "ALTER TABLE assignment ADD COLUMN pay_rate NUMERIC(10, 2)",
+    "ALTER TABLE assignment ADD COLUMN overtime_pay_rate NUMERIC(10, 2)",
+    "ALTER TABLE assignment ADD COLUMN expense_markup NUMERIC(10, 2) DEFAULT 0",
+    "ALTER TABLE expense ADD COLUMN billed_amount NUMERIC(10, 2)",
+    "ALTER TABLE weekly_packet ADD COLUMN invoice_total NUMERIC(10, 2)",
+    "ALTER TABLE weekly_packet ADD COLUMN contractor_cost NUMERIC(10, 2)",
     "ALTER TABLE weekly_packet ADD COLUMN regular_hours NUMERIC(6, 2)",
     "ALTER TABLE weekly_packet ADD COLUMN overtime_hours NUMERIC(6, 2)",
     "ALTER TABLE weekly_packet ADD COLUMN per_diem_days INTEGER",
