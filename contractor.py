@@ -222,7 +222,7 @@ def day(assignment_id, day_str):
 
     if request.method == "POST":
         if not state["editable"]:
-            flash("That week is locked. Ask Matthew if something needs to change.", "error")
+            flash("That week is locked. Ask your contact at Verde if something needs to change.", "error")
             return redirect(_back_to_week(assignment, monday))
 
         if request.form.get("action") == "clear":
@@ -307,7 +307,7 @@ def submit_week(assignment_id, monday_str):
     else:
         db.session.add(WeekSubmission(assignment_id=assignment.id, week_start=monday))
         db.session.commit()
-        flash("Week submitted. You can still fix something until Matthew approves it.", "success")
+        flash("Week submitted. You can still fix something until Verde approves it.", "success")
     return redirect(_back_to_week(assignment, monday))
 
 
@@ -350,7 +350,7 @@ def expenses(assignment_id):
         monday, _ = week_bounds(expense_date)
         state = week_state(assignment, monday, today)
         if not state["editable"]:
-            flash("That week is locked, so a receipt can't be added to it. Ask Matthew.", "error")
+            flash("That week is locked, so a receipt can't be added to it. Ask your contact at Verde.", "error")
             return redirect(url_for("contractor.expenses", assignment_id=assignment.id))
 
         if not photo or photo.filename == "" or not _allowed_file(photo.filename):
@@ -417,7 +417,7 @@ def confirm_expense_amount(expense_id):
 
     monday, _ = week_bounds(expense.expense_date)
     if not week_state(expense.assignment, monday)["editable"]:
-        flash("That week is locked. Ask Matthew if the amount needs changing.", "error")
+        flash("That week is locked. Ask your contact at Verde if the amount needs changing.", "error")
         return redirect(url_for("contractor.expenses", assignment_id=expense.assignment_id))
 
     try:
