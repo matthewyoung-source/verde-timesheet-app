@@ -17,13 +17,13 @@
   <div class="kpi hours"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div class="lab">Total hours</div><div class="val">{{ figures.total_hours|hrs }}</div><div class="rate">{{ figures.regular_hours|hrs }} regular{% if figures.overtime_hours %} + {{ figures.overtime_hours|hrs }} overtime{% endif %}</div></div>
   <div class="kpi money"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></div><div class="lab">Expenses</div><div class="val">{{ figures.total_expenses|money }}</div><div class="rate">{{ expenses|length }} receipt{{ '' if expenses|length == 1 else 's' }}</div></div>
   <div class="kpi people"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="lab">Invoice total</div><div class="val">{{ figures.invoice_total|money }}</div><div class="rate">{{ packet.xero_reference or 'no reference yet' }}</div></div>
-  <div class="kpi attention {{ 'hot' if packet.approval_status != 'approved' else '' }}"><div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="lab">Status</div><div class="val" style="font-size:20px;">{% if packet.approval_status == 'approved' %}Approved{% else %}Awaiting you{% endif %}</div><div class="rate">{% if packet.approval_status == 'approved' %}locked {{ packet.approved_at.strftime('%b %-d, %-I:%M %p') }}{% else %}approve to lock the week{% endif %}</div></div>
+  <div class="kpi attention {{ 'hot' if packet.approval_status != 'approved' else '' }}"><div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="lab">Status</div><div class="val" style="font-size:20px;">{% if packet.approval_status == 'approved' %}Approved{% else %}Awaiting you{% endif %}</div><div class="rate">{% if packet.approval_status == 'approved' %}locked {{ packet.approved_at|local_time }}{% else %}approve to lock the week{% endif %}</div></div>
 </div>
 
 <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
   {% set p = packet %}{% include "_packet_pills.html" %}{% include "_xero_pill.html" %}
   {% if packet.client_approval_note %}<span class="muted small">Client note: "{{ packet.client_approval_note }}"</span>{% endif %}
-  <span class="muted small" style="margin-left:auto;">Generated {{ packet.generated_at.strftime('%b %-d, %-I:%M %p') }}</span>
+  <span class="muted small" style="margin-left:auto;">Generated {{ packet.generated_at|local_time }}</span>
 </div>
 
 <form method="POST">

@@ -10,14 +10,8 @@
     <input type="email" name="email" required autofocus autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="you@example.com">
     <label>Password</label>
     <input type="password" name="password" id="password" required autocomplete="current-password" placeholder="Your password">
-    <label class="check"><input type="checkbox" id="show-password"> Show password</label>
     <button class="btn" type="submit">Log in</button>
   </form>
   <p class="auth-foot"><a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a></p>
 </div>
-<script>
-  document.getElementById('show-password').addEventListener('change', function () {
-    document.getElementById('password').type = this.checked ? 'text' : 'password';
-  });
-</script>
 {% endblock %}

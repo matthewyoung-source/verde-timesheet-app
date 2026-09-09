@@ -62,7 +62,7 @@
         <td class="num"><b>{{ r.hours|hrs }}</b></td>
         <td class="num">{{ r.expense_total|money if r.expense_count else '' }}{% if r.unconfirmed %} <span class="pill warning">{{ r.unconfirmed }} to confirm</span>{% endif %}</td>
         <td>
-          {% if r.submitted %}<span class="pill green">Submitted {{ r.submitted.submitted_at.strftime('%a') }}</span>
+          {% if r.submitted %}<span class="pill green">Submitted {{ r.submitted.submitted_at|local_time('%a') }}</span>
           {% elif r.hours %}<span class="pill brand">Logging{% if r.last_logged %} &middot; last {{ r.last_logged.strftime('%a') }}{% endif %}</span>
           {% else %}<span class="pill grey">Nothing yet</span>{% endif %}
         </td>

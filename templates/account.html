@@ -28,7 +28,6 @@
 
     <label>Current password</label>
     <input type="password" name="current_password" id="current_password" required autocomplete="current-password">
-    <label class="check"><input type="checkbox" id="show-password"> Show passwords</label>
 
     <button class="btn" type="submit">Save changes</button>
   </form>
@@ -40,10 +39,4 @@
   <p class="note" style="margin:0;">On iPhone: open this page in Safari, tap Share, then "Add to Home Screen". On Android: open the browser menu and tap "Add to Home screen". You'll get a Verde icon that opens straight to this week.</p>
 </div>
 {% endif %}
-<script>
-  document.getElementById('show-password').addEventListener('change', function () {
-    var t = this.checked ? 'text' : 'password';
-    ['new_password', 'confirm_password', 'current_password'].forEach(function (id) { document.getElementById(id).type = t; });
-  });
-</script>
 {% endblock %}

@@ -31,7 +31,7 @@
         </div>
       </form>
     {% elif p.client_approval_status == 'approved' %}
-      <span class="pill green">You approved this{% if p.client_approved_at %} on {{ p.client_approved_at.strftime('%b %-d') }}{% endif %}</span>{% if p.client_approval_note %} <span class="muted small">"{{ p.client_approval_note }}"</span>{% endif %}
+      <span class="pill green">You approved this{% if p.client_approved_at %} on {{ p.client_approved_at|local_time('%b %-d') }}{% endif %}</span>{% if p.client_approval_note %} <span class="muted small">"{{ p.client_approval_note }}"</span>{% endif %}
     {% elif p.client_approval_status == 'disputed' %}
       <span class="pill critical">You disputed this</span>{% if p.client_approval_note %} <span class="muted small">"{{ p.client_approval_note }}"</span>{% endif %}
     {% endif %}
