@@ -2,39 +2,162 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f2f24">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Verde">
   <title>{% block title %}Verde Solutions{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='mark-32.png') }}?v=4">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}?v=4">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
 </head>
-<body>
-  <div class="topbar">
-    <a class="brand" href="{{ url_for(current_user.home_endpoint()) if current_user.is_authenticated else url_for('auth.login') }}">
-      <img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions">
-    </a>
-    <nav>
-      {% if current_user.is_authenticated %}
-        <span>{{ current_user.name }}</span>
-        {% if current_user.is_admin() %}
-          <a href="{{ url_for('admin.reports') }}">Reports</a>
-        {% endif %}
-        <a href="{{ url_for('auth.account') }}">My account</a>
-        <a href="{{ url_for('auth.logout') }}">Log out</a>
-      {% endif %}
+{% set ep = request.endpoint or '' %}
+{% set gear = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>' %}
+{% if current_user.is_authenticated and current_user.is_admin() %}
+{# ======================= Admin shell: sidebar ======================= #}
+<body class="has-sidebar admin">
+  <div class="shell">
+    <aside class="side">
+      <a class="side-logo" href="{{ url_for('admin.dashboard') }}">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions">
+      </a>
+      <nav class="side-nav">
+        <a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if ep == 'admin.dashboard' else '' }}">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Overview
+        </a>
+        <a href="{{ url_for('admin.packets_list') }}" class="{{ 'active' if ep in ('admin.packets_list', 'admin.packet_detail') else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/></svg>Packets
+          {% if pending_badge %}<span class="badge">{{ pending_badge }}</span>{% endif %}
+        </a>
+        <a href="{{ url_for('admin.contractors') }}" class="{{ 'active' if ep == 'admin.contractors' else '' }}">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>Contractors
+        </a>
+        <a href="{{ url_for('admin.clients') }}" class="{{ 'active' if ep == 'admin.clients' else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-5h6v5"/></svg>Clients
+        </a>
+        <a href="{{ url_for('admin.reports') }}" class="{{ 'active' if ep == 'admin.reports' else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reports
+        </a>
+        <a href="{{ url_for('auth.account') }}" class="{{ 'active' if ep == 'auth.account' else '' }}">{{ gear|safe }}Account</a>
+      </nav>
+      <div class="side-grow"></div>
+      <div class="side-user">
+        <div class="avatar">{{ current_user.name[:1]|upper }}</div>
+        <div class="side-user-text">
+          <div class="side-user-name">{{ current_user.name }}</div>
+          <a href="{{ url_for('auth.logout') }}">Log out</a>
+        </div>
+      </div>
+    </aside>
+    <main class="main">
+{% elif current_user.is_authenticated and current_user.is_client() %}
+{# ======================= Client shell: sidebar ======================= #}
+<body class="has-sidebar client">
+  <div class="shell">
+    <aside class="side">
+      <a class="side-logo" href="{{ url_for('client.dashboard') }}">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions">
+      </a>
+      <nav class="side-nav">
+        <a href="{{ url_for('client.dashboard') }}" class="{{ 'active' if ep == 'client.dashboard' else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/></svg>Weekly approvals
+        </a>
+        <a href="{{ url_for('auth.account') }}" class="{{ 'active' if ep == 'auth.account' else '' }}">{{ gear|safe }}Account</a>
+      </nav>
+      <div class="side-grow"></div>
+      <div class="side-user">
+        <div class="avatar">{{ current_user.name[:1]|upper }}</div>
+        <div class="side-user-text">
+          <div class="side-user-name">{{ current_user.name }}</div>
+          <a href="{{ url_for('auth.logout') }}">Log out</a>
+        </div>
+      </div>
+    </aside>
+    <main class="main">
+{% elif current_user.is_authenticated %}
+{# ======================= Contractor shell: phone-first ======================= #}
+<body class="contractor">
+  <div class="cshell">
+    <nav class="ctabs">
+      <a class="ctabs-logo" href="{{ url_for('contractor.dashboard') }}"><img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions"></a>
+      <a href="{{ url_for('contractor.dashboard') }}" class="{{ 'active' if ep in ('contractor.dashboard', 'contractor.day') else '' }}">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>This week
+      </a>
+      <a href="{{ url_for('contractor.receipts') }}" class="{{ 'active' if ep in ('contractor.receipts', 'contractor.expenses') else '' }}">
+        <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Receipts
+      </a>
+      <a href="{{ url_for('contractor.history') }}" class="{{ 'active' if ep in ('contractor.history', 'contractor.week') else '' }}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Past weeks
+      </a>
+      <a href="{{ url_for('auth.account') }}" class="{{ 'active' if ep == 'auth.account' else '' }}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>Account
+      </a>
+      <div class="ctabs-grow"></div>
+      <div class="ctabs-user">
+        <div class="avatar">{{ current_user.name[:1]|upper }}</div>
+        <div class="side-user-text">
+          <div class="side-user-name">{{ current_user.name }}</div>
+          <a href="{{ url_for('auth.logout') }}">Log out</a>
+        </div>
+      </div>
     </nav>
-  </div>
-  <div class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
+    <div>
+      <header class="chead">
+        <a href="{{ url_for('contractor.dashboard') }}"><img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions"></a>
+        <div class="who"><span>{{ current_user.name.split(' ')[0] }}</span><div class="avatar" style="width:30px;height:30px;font-size:13px;">{{ current_user.name[:1]|upper }}</div></div>
+      </header>
+      <main class="cmain">
+{% else %}
+{# ======================= Auth pages: split screen ======================= #}
+<body class="auth-page">
+  <div class="auth-split">
+    <aside class="auth-brand">
+      <div class="auth-brand-top">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Verde Solutions">
+      </div>
+      <div class="auth-brand-body">
+        <h2>Log your hours. We handle the rest.</h2>
+        <p>Enter your time and snap your receipts from your phone. Your weekly timesheet, expenses and invoice are built for you every Sunday.</p>
+        <div class="auth-mock" aria-hidden="true">
+          <div class="mock-head"><b>This week</b><em>On track</em></div>
+          <div class="mock-total">38.5<small>hrs</small></div>
+          <div class="mock-sub">Bell Solar &middot; Mon 7 to Sun 13</div>
+          <div class="mock-days">
+            <div class="on">Mon<b>10</b></div><div class="on">Tue<b>9.5</b></div><div class="on">Wed<b>10</b></div><div class="on today">Thu<b>9</b></div><div>Fri<b>&ndash;</b></div><div>Sat<b>&ndash;</b></div><div>Sun<b>&ndash;</b></div>
+          </div>
+          <div class="mock-btns"><span class="a">Log today</span><span class="b">Add receipt</span></div>
+        </div>
+      </div>
+      <div class="auth-brand-foot">
+        <span class="auth-pill">&#9679; Built for the field</span>
+        <span class="auth-pill">&#9679; Receipts read automatically</span>
+        <span class="auth-pill">&#9679; Weekly packet every Sunday</span>
+      </div>
+    </aside>
+    <div class="auth-wrap">
+{% endif %}
+{# ---- shared page body: exactly one content block, whichever shell is open ---- #}
+      {% include "_flashes.html" %}
+      {% block content %}{% endblock %}
+      {% block auth_content %}{% endblock %}
+{% if current_user.is_authenticated and (current_user.is_admin() or current_user.is_client()) %}
+    </main>
   </div>
 </body>
+{% elif current_user.is_authenticated %}
+      </main>
+    </div>
+  </div>
+</body>
+{% else %}
+      <p class="auth-legal">&copy; Verde Solutions LLC. Contractor time and expenses. Problems signing in? Contact Matthew.</p>
+    </div>
+  </div>
+</body>
+{% endif %}
 </html>

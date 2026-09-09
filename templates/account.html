@@ -1,34 +1,49 @@
 {% extends "base.html" %}
 {% block title %}My account - Verde Solutions{% endblock %}
 {% block content %}
-<div class="card" style="max-width:420px; margin: 40px auto;">
-  <h2>My account</h2>
+<div class="top">
+  <div>
+    <h1>My account</h1>
+    <div class="sub">Signed in as <b>{{ current_user.email }}</b></div>
+  </div>
+</div>
+
+<div class="card form-card">
+  <h3>Email and password</h3>
+  <p class="hint">Change either one. Your current password is needed to save.</p>
   <form method="POST">
     <label>Email</label>
-    <input type="email" name="email" required value="{{ current_user.email }}" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <input type="email" name="email" required value="{{ current_user.email }}" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false">
 
-    <label style="margin-top:14px; display:block;">New password (leave blank to keep current)</label>
-    <input type="password" name="new_password" id="new_password" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <div class="grid-2">
+      <div>
+        <label>New password</label>
+        <input type="password" name="new_password" id="new_password" autocomplete="new-password" placeholder="Leave blank to keep">
+      </div>
+      <div>
+        <label>Confirm new password</label>
+        <input type="password" name="confirm_password" id="confirm_password" autocomplete="new-password">
+      </div>
+    </div>
 
-    <label>Confirm new password</label>
-    <input type="password" name="confirm_password" id="confirm_password" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <label>Current password</label>
+    <input type="password" name="current_password" id="current_password" required autocomplete="current-password">
+    <label class="check"><input type="checkbox" id="show-password"> Show passwords</label>
 
-    <label style="margin-top:14px; display:block;">Current password (required to save any change)</label>
-    <input type="password" name="current_password" id="current_password" required autocapitalize="off" autocorrect="off" spellcheck="false">
-
-    <label style="font-weight:normal; margin-top:6px; display:flex; align-items:center; gap:6px;">
-      <input type="checkbox" id="show-password" style="width:auto;"> Show passwords
-    </label>
-
-    <button class="btn" type="submit" style="width:100%; margin-top:14px;">Save changes</button>
+    <button class="btn" type="submit">Save changes</button>
   </form>
 </div>
+
+{% if not current_user.is_admin() and not current_user.is_client() %}
+<div class="card soft">
+  <h3>Add this app to your home screen</h3>
+  <p class="note" style="margin:0;">On iPhone: open this page in Safari, tap Share, then "Add to Home Screen". On Android: open the browser menu and tap "Add to Home screen". You'll get a Verde icon that opens straight to this week.</p>
+</div>
+{% endif %}
 <script>
   document.getElementById('show-password').addEventListener('change', function () {
     var t = this.checked ? 'text' : 'password';
-    document.getElementById('new_password').type = t;
-    document.getElementById('confirm_password').type = t;
-    document.getElementById('current_password').type = t;
+    ['new_password', 'confirm_password', 'current_password'].forEach(function (id) { document.getElementById(id).type = t; });
   });
 </script>
 {% endblock %}

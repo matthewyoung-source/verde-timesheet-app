@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Receipts - Verde Solutions{% endblock %}
+{% block content %}
+<div class="top"><div><h1>Receipts</h1><div class="sub">Which job is this for?</div></div></div>
+<div class="card">
+  <div class="row-list">
+    {% for a in assignments %}
+      <a class="li" href="{{ url_for('contractor.expenses', assignment_id=a.id) }}">
+        <div class="li-ic">{{ a.client.name[:1] }}</div>
+        <div class="li-body"><div class="li-title">{{ a.client.name }}</div>{% if a.role_title %}<div class="li-sub">{{ a.role_title }}</div>{% endif %}</div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% else %}
+      <div class="empty">No active job yet. Ask Matthew to set one up.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

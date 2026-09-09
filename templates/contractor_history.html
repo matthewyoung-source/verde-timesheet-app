@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Past weeks - Verde Solutions{% endblock %}
+{% block content %}
+<div class="top">
+  <div>
+    <h1>Past weeks</h1>
+    <div class="sub">Last {{ rows|length }} week{{ '' if rows|length == 1 else 's' }} &middot; <b>{{ total_hours|hrs }} hrs</b> logged</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row-list">
+    {% for w in rows %}
+      <a class="li" href="{{ url_for('contractor.week', assignment_id=w.assignment.id, monday_str=w.monday.isoformat()) }}">
+        <div class="li-ic {{ 'grey' if w.locked else ('amber' if w.submitted else '') }}">
+          {% if w.locked %}<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          {% elif w.submitted %}<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+          {% else %}{{ w.monday.strftime('%-d') }}{% endif %}
+        </div>
+        <div class="li-body">
+          <div class="li-title">{{ 'This week' if w.is_current else w.monday.strftime('%b %-d') ~ ' to ' ~ w.sunday.strftime('%b %-d') }}</div>
+          <div class="li-sub">{{ w.assignment.client.name }} &middot; {{ w.days_logged }} day{{ '' if w.days_logged == 1 else 's' }}{% if w.expenses %} &middot; {{ w.expense_total|money }} receipts{% endif %}</div>
+        </div>
+        <div class="li-right"><b>{{ w.hours|hrs }} hrs</b><small>{{ w.status }}</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% else %}
+      <div class="empty">Nothing logged yet. Your weeks will show up here.</div>
+    {% endfor %}
+  </div>
+</div>
+<p class="note">A week shows as <b>Submitted</b> once you've sent it to Matthew and <b>Approved &amp; locked</b> once he has signed it off. Locked weeks can only be changed by him.</p>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ work_date.strftime('%A %b %-d') }} - Verde Solutions{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ back_url }}">&larr; {{ 'This week' if state.is_current else 'Week of ' ~ state.monday.strftime('%b %-d') }}</a>
+<div class="day-nav">
+  {% if prev_ok %}<a href="{{ url_for('contractor.day', assignment_id=assignment.id, day_str=prev_day.isoformat()) }}"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>{{ prev_day.strftime('%a') }}</a>{% else %}<span></span>{% endif %}
+  <div style="text-align:center;">
+    <h1 style="font-size:22px;">{{ work_date.strftime('%A') }}</h1>
+    <div class="muted small">{{ work_date.strftime('%B %-d') }} &middot; {{ assignment.client.name }}</div>
+  </div>
+  {% if next_ok %}<a href="{{ url_for('contractor.day', assignment_id=assignment.id, day_str=next_day.isoformat()) }}">{{ next_day.strftime('%a') }}<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>{% else %}<span></span>{% endif %}
+</div>
+
+{% if not state.editable %}
+  <div class="card soft">
+    <b>{{ 'Approved & locked' if state.locked else 'This week is closed' }}</b>
+    <div class="note">{% if state.locked %}Matthew has approved this week, so it can only be changed by him.{% else %}Only this week and last week can be edited from your phone. Ask Matthew if this needs a change.{% endif %}</div>
+  </div>
+  <div class="card">
+    {% if entry %}
+      <div class="calc"><div><div class="n">{{ entry.hours|hrs }}<small>hrs</small></div></div><div class="t">{% if entry.start_time and entry.end_time %}{{ entry.start_time.strftime('%-I:%M %p') }} to {{ entry.end_time.strftime('%-I:%M %p') }}{% else %}entered directly{% endif %}</div></div>
+      {% if entry.notes %}<p class="note" style="margin:0;">{{ entry.notes }}</p>{% endif %}
+    {% else %}
+      <div class="empty">No hours logged for this day.</div>
+    {% endif %}
+  </div>
+{% else %}
+{% set use_hours = entry and not entry.start_time %}
+<form method="POST" id="day-form" class="card">
+  <div id="times-mode" {% if use_hours %}hidden{% endif %}>
+    <div class="time-row">
+      <div>
+        <label for="start_time">Start</label>
+        <input class="time-big" type="time" id="start_time" name="start_time" value="{{ entry.start_time.strftime('%H:%M') if entry and entry.start_time else (recent.start_time.strftime('%H:%M') if recent else '') }}" step="900">
+      </div>
+      <div>
+        <label for="end_time">Finish</label>
+        <input class="time-big" type="time" id="end_time" name="end_time" value="{{ entry.end_time.strftime('%H:%M') if entry and entry.end_time else (recent.end_time.strftime('%H:%M') if recent else '') }}" step="900">
+      </div>
+    </div>
+    <div class="calc">
+      <div><div class="n"><span id="calc-hours">{{ entry.hours|hrs if entry else '0' }}</span><small>hrs</small></div></div>
+      <div class="t" id="calc-note">{% if recent and not entry %}same as {{ recent.work_date.strftime('%a') }}, change if needed{% if break_hours %}<br>{% endif %}{% endif %}{% if break_hours %}less {{ break_hours|hrs }} hr break{% elif not recent or entry %}worked out from your times{% endif %}</div>
+    </div>
+    <p style="margin:0 0 14px;"><button type="button" class="toggle-link" id="to-hours">Don't know exact times? Enter hours instead</button></p>
+  </div>
+
+  <div id="hours-mode" {% if not use_hours %}hidden{% endif %}>
+    <label for="hours">Hours worked</label>
+    <input class="hours-big" type="number" id="hours" name="hours" inputmode="decimal" step="0.25" min="0" max="24" placeholder="e.g. 10" value="{{ entry.hours|hrs if use_hours else '' }}">
+    <p style="margin:0 0 14px;"><button type="button" class="toggle-link" id="to-times">Enter start and finish times instead</button></p>
+  </div>
+
+  <label for="notes">Note <span class="faint" style="font-weight:500;">(optional)</span></label>
+  <input type="text" id="notes" name="notes" maxlength="300" placeholder="e.g. Rained out after lunch" value="{{ entry.notes if entry and entry.notes else '' }}">
+
+  <button class="btn big" type="submit">Save {{ work_date.strftime('%A') }}</button>
+  {% if entry %}
+    <button class="btn ghost block" type="submit" name="action" value="clear" style="margin-top:10px;" onclick="return confirm('Clear the hours for {{ work_date.strftime('%A') }}?');">Clear this day</button>
+  {% endif %}
+</form>
+<script>
+(function () {
+  var startEl = document.getElementById('start_time');
+  var endEl = document.getElementById('end_time');
+  var hoursEl = document.getElementById('hours');
+  var out = document.getElementById('calc-hours');
+  var timesMode = document.getElementById('times-mode');
+  var hoursMode = document.getElementById('hours-mode');
+  var brk = {{ break_hours }};
+
+  function mins(v) { if (!v) return null; var p = v.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
+  function fmt(h) { return (Math.round(h * 100) / 100).toString(); }
+  function recalc() {
+    var s = mins(startEl.value), e = mins(endEl.value);
+    if (s === null || e === null) { out.textContent = '0'; return; }
+    if (e <= s) e += 24 * 60;
+    var h = (e - s) / 60 - brk;
+    out.textContent = fmt(Math.max(h, 0));
+  }
+  startEl.addEventListener('input', recalc);
+  endEl.addEventListener('input', recalc);
+  startEl.addEventListener('change', recalc);
+  endEl.addEventListener('change', recalc);
+
+  document.getElementById('to-hours').addEventListener('click', function () {
+    timesMode.hidden = true; hoursMode.hidden = false; startEl.value = ''; endEl.value = ''; hoursEl.focus();
+  });
+  document.getElementById('to-times').addEventListener('click', function () {
+    hoursMode.hidden = true; timesMode.hidden = false; hoursEl.value = ''; startEl.focus();
+  });
+  recalc();
+})();
+</script>
+{% endif %}
+{% endblock %}

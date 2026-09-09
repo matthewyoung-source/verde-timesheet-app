@@ -1,80 +1,124 @@
 {% extends "base.html" %}
-{% block title %}Admin - Verde Solutions{% endblock %}
+{% block title %}Overview - Verde Solutions{% endblock %}
 {% block content %}
-<h1>Admin dashboard</h1>
-
-<div class="stat-grid">
-  <div class="stat-tile">
-    <div class="stat-label">Active contractors</div>
-    <div class="stat-value">{{ active_contractor_count }}</div>
+<div class="top">
+  <div>
+    <h1>Overview</h1>
+    <div class="sub">Week of <b>{{ monday.strftime('%b %-d') }} to {{ sunday.strftime('%b %-d') }}</b> &middot; {{ today.strftime('%A, %B %-d') }}</div>
   </div>
-  <div class="stat-tile">
-    <div class="stat-label">Active assignments</div>
-    <div class="stat-value">{{ active_assignment_count }}</div>
-  </div>
-  <div class="stat-tile">
-    <div class="stat-label">Hours logged this week</div>
-    <div class="stat-value">{{ '%.1f'|format(hours_this_week) }}</div>
-  </div>
-  <div class="stat-tile{{ ' stat-tile-alert' if pending_approval_count > 0 else '' }}">
-    <div class="stat-label">Awaiting your approval</div>
-    <div class="stat-value">{{ pending_approval_count }}</div>
+  <div class="tools">
+    {% if xero_connected %}<span class="pill green">Xero connected</span>{% else %}<a class="btn small" href="{{ url_for('admin.xero_connect') }}">Connect Xero</a>{% endif %}
   </div>
 </div>
 
+<div class="kpis">
+  <a class="kpi people" href="{{ url_for('admin.contractors') }}">
+    <div class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M17 4a4 4 0 0 1 0 8"/></svg></div>
+    <div class="lab">Active contractors</div>
+    <div class="val">{{ active_contractor_count }}</div>
+    <div class="rate">{{ active_assignment_count }} active assignment{{ '' if active_assignment_count == 1 else 's' }}</div>
+  </a>
+  <a class="kpi hours" href="{{ url_for('admin.reports') }}">
+    <div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+    <div class="lab">Hours logged this week</div>
+    <div class="val">{{ hours_this_week|hrs }}</div>
+    <div class="rate">across {{ week_rows|length }} assignment{{ '' if week_rows|length == 1 else 's' }}</div>
+  </a>
+  <a class="kpi money" href="{{ url_for('admin.packets_list') }}">
+    <div class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></div>
+    <div class="lab">Receipts this week</div>
+    <div class="val">{{ expenses_this_week|money }}</div>
+    <div class="rate">{% set unc = week_rows|sum(attribute='unconfirmed') %}{% if unc %}{{ unc }} amount{{ '' if unc == 1 else 's' }} still to confirm{% else %}all amounts confirmed{% endif %}</div>
+  </a>
+  <a class="kpi attention {{ 'hot' if pending_approval_count else '' }}" href="{{ url_for('admin.packets_list', status='pending') }}">
+    <div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+    <div class="lab">Awaiting your approval</div>
+    <div class="val">{{ pending_approval_count }}</div>
+    <div class="rate">{{ 'review and lock before invoicing' if pending_approval_count else 'nothing waiting' }}</div>
+  </a>
+</div>
+
 <div class="card">
-  <h3>Xero</h3>
-  {% if xero_connected %}
-    <p><span class="pill green">Connected</span> Draft invoices will be created automatically each Sunday.</p>
-    <a class="btn secondary" href="{{ url_for('admin.xero_connect') }}" style="padding:6px 12px;">Reconnect to Xero</a>
-    <span class="muted">Reconnect once after an update that adds Xero permissions (e.g. branding theme lookup).</span>
+  <div class="card-head">
+    <div><h3>This week, by contractor</h3><p class="hint">Live from what they've logged so far. A tick means they pressed Submit week.</p></div>
+    <a class="btn ghost small" href="{{ url_for('admin.contractors') }}">Manage contractors</a>
+  </div>
+  {% if not week_rows %}
+    <div class="empty">No active assignments. Add a contractor and give them a client assignment to get started.</div>
   {% else %}
-    <p><span class="pill grey">Not connected</span> PDFs still generate normally, but no Xero invoice will be created until this is set up.</p>
-    <a class="btn" href="{{ url_for('admin.xero_connect') }}">Connect to Xero</a>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Contractor</th><th>Client</th><th>Days</th><th class="num">Hours</th><th class="num">Receipts</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for r in week_rows %}
+      <tr>
+        <td><b>{{ r.assignment.contractor.name }}</b>{% if r.assignment.role_title %}<div class="muted small">{{ r.assignment.role_title }}</div>{% endif %}</td>
+        <td>{{ r.assignment.client.name }}</td>
+        <td>
+          <span class="mini-days" title="{% for d, h in r.days %}{{ d.strftime('%a') }} {{ h|hrs if h else '-' }}{{ ', ' if not loop.last }}{% endfor %}">
+            {% for d, h in r.days %}<i class="{{ 'on' if h else '' }} {{ 'today' if d == today else '' }}"></i>{% endfor %}
+          </span>
+        </td>
+        <td class="num"><b>{{ r.hours|hrs }}</b></td>
+        <td class="num">{{ r.expense_total|money if r.expense_count else '' }}{% if r.unconfirmed %} <span class="pill warning">{{ r.unconfirmed }} to confirm</span>{% endif %}</td>
+        <td>
+          {% if r.submitted %}<span class="pill green">Submitted {{ r.submitted.submitted_at.strftime('%a') }}</span>
+          {% elif r.hours %}<span class="pill brand">Logging{% if r.last_logged %} &middot; last {{ r.last_logged.strftime('%a') }}{% endif %}</span>
+          {% else %}<span class="pill grey">Nothing yet</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
   {% endif %}
 </div>
 
-<div class="card">
-  <h3>People &amp; clients</h3>
-  <a class="btn secondary" href="{{ url_for('admin.contractors') }}">Manage contractors &amp; rates</a>
-  <a class="btn secondary" href="{{ url_for('admin.clients') }}">Manage clients</a>
-  <a class="btn secondary" href="{{ url_for('admin.reports') }}">Reports</a>
-</div>
-
-<div class="card">
-  <h3>Generated packets (this week: {{ monday.strftime('%b %d') }} - {{ sunday.strftime('%b %d') }})</h3>
-  {% if not recent_packets %}
-    <p class="muted">Nothing generated yet. The job runs automatically every Sunday night.</p>
-  {% else %}
-    <table>
-      <tr><th>Contractor</th><th>Client</th><th>Week of</th><th>Hours</th><th>Expenses</th><th>Approval</th><th>Xero</th><th></th></tr>
-      {% for p in recent_packets %}
-        <tr>
-          <td>{{ p.assignment.contractor.name }}</td>
-          <td>{{ p.assignment.client.name }}</td>
-          <td>{{ p.week_start.strftime('%m/%d') }}</td>
-          <td>{{ p.total_hours }}</td>
-          <td>${{ '%.2f'|format(p.total_expenses) if p.total_expenses else '0.00' }}</td>
-          <td>
-            {% if p.approval_status == 'approved' %}<span class="pill green">Approved &amp; locked</span>
-            {% else %}<span class="pill warning">Awaiting approval</span>{% endif %}
-            {% if p.client_approval_status == 'pending' %}<br><span class="pill warning">Client: pending</span>
-            {% elif p.client_approval_status == 'approved' %}<br><span class="pill green">Client: approved</span>
-            {% elif p.client_approval_status == 'disputed' %}<br><span class="pill critical">Client: disputed</span>{% endif %}
-          </td>
-          <td>
-            {% if p.xero_invoice_status == 'draft_created' %}<span class="pill green">Draft created</span>
-            {% elif p.xero_invoice_status == 'not_connected' %}<span class="pill grey">Not connected</span>
-            {% else %}<span class="pill critical">Failed</span>{% endif %}
-          </td>
-          <td>
-            <a href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">{{ 'View' if p.approval_status == 'approved' else 'Review & approve' }}</a>
-            &middot;
-            <a href="{{ url_for('admin.download_packet', packet_id=p.id) }}">PDF</a>{% if p.xero_invoice_id %} &middot; <a href="{{ url_for('admin.download_full_packet', packet_id=p.id) }}">Full packet</a>{% endif %}
-          </td>
-        </tr>
+<div class="grid2">
+  <div class="card">
+    <div class="card-head">
+      <div><h3>Awaiting your approval</h3><p class="hint">Record the sign-off from your Monday call. Approving locks the week for the contractor.</p></div>
+      <a class="btn ghost small" href="{{ url_for('admin.packets_list') }}">All packets</a>
+    </div>
+    {% if not pending_packets %}
+      <div class="empty">Nothing waiting. The next packets are built Sunday night.</div>
+    {% else %}
+    <div class="row-list">
+      {% for p in pending_packets %}
+        <a class="li" href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">
+          <div class="li-ic amber">{{ p.week_start.strftime('%-d') }}</div>
+          <div class="li-body">
+            <div class="li-title">{{ p.assignment.contractor.name }} &middot; {{ p.assignment.client.name }}</div>
+            <div class="li-sub">Week of {{ p.week_start.strftime('%b %-d') }} &middot; {{ p.total_hours|hrs }} hrs{% if p.total_expenses %} &middot; {{ p.total_expenses|money }} expenses{% endif %}</div>
+          </div>
+          <div class="li-right">{% set p = p %}{% include "_xero_pill.html" %}</div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
       {% endfor %}
-    </table>
-  {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h3>Xero</h3></div></div>
+    {% if xero_connected %}
+      <p style="margin:0 0 10px;"><span class="pill green">Connected</span></p>
+      <p class="note">Draft invoices are created automatically each Sunday night, one per contractor per week, and updated if you edit a packet before approving it.</p>
+      <a class="btn ghost small" href="{{ url_for('admin.xero_connect') }}">Reconnect</a>
+      <p class="note" style="margin-top:8px;">Only needed after an update that adds Xero permissions.</p>
+    {% else %}
+      <p style="margin:0 0 10px;"><span class="pill grey">Not connected</span></p>
+      <p class="note">PDF packets still generate normally. No invoice drafts until Xero is connected.</p>
+      <a class="btn small" href="{{ url_for('admin.xero_connect') }}">Connect to Xero</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div><h3>Recent packets</h3><p class="hint">Timesheet + expenses PDF for each contractor week.</p></div>
+    <a class="btn ghost small" href="{{ url_for('admin.packets_list') }}">See all</a>
+  </div>
+  {% include "_packet_table.html" %}
 </div>
 {% endblock %}

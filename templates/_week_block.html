@@ -1,0 +1,69 @@
+{# One assignment, one week. Expects `w` (a week_state dict) and `compact` (bool). #}
+{% set a = w.assignment %}
+<div class="hero {{ 'quiet' if not w.entries and not w.expenses else '' }}">
+  <div style="min-width:0;">
+    <div class="eyebrow">{{ a.client.name }}{% if a.role_title %} &middot; {{ a.role_title }}{% endif %}</div>
+    <div class="big">{{ w.hours|hrs }}<small>hrs</small></div>
+    <div class="line">
+      {% if w.locked %}<span class="pill locked nodot">&#128274; Approved &amp; locked</span>
+      {% elif w.submitted %}<span class="pill amber nodot">Submitted</span>
+      {% elif w.entries or w.expenses %}<span class="pill nodot">In progress</span>
+      {% else %}<span class="pill nodot">Nothing logged yet</span>{% endif %}
+      <span><b>{{ w.days_logged }}</b> day{{ '' if w.days_logged == 1 else 's' }} &middot; <b>{{ w.expenses|length }}</b> receipt{{ '' if w.expenses|length == 1 else 's' }}{% if w.expense_total %} ({{ w.expense_total|money }}){% endif %}</span>
+    </div>
+  </div>
+  <div class="ring-wrap">
+    {{ ring_svg(w.hours, 40, (w.hours|hrs) ~ '/40', '--amber', 72, track_color='rgba(255,255,255,0.18)', text_color='#fff') }}
+    <div style="font-size:12.5px; color: rgba(255,255,255,0.8); line-height:1.4;">
+      {% if w.overtime_hours %}<b style="color:#fff;">{{ w.overtime_hours|hrs }} hrs</b> overtime{% else %}Regular hours<br>this week{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="days">
+  {% for d in w.days %}
+    {% set e = w.entries.get(d) %}
+    {% set is_future = d > w.today %}
+    {% set can_edit = w.editable and not is_future %}
+    {% set cls = 'day' ~ (' logged' if e else '') ~ (' today' if d == w.today else '') ~ (' future' if is_future else '') ~ (' locked' if w.locked else '') %}
+    {% if can_edit %}<a class="{{ cls }}" href="{{ url_for('contractor.day', assignment_id=a.id, day_str=d.isoformat()) }}">{% else %}<div class="{{ cls }}">{% endif %}
+      {% if w.locked %}<svg class="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>{% endif %}
+      <span class="dn">{{ d.strftime('%a') }}</span>
+      <span class="dd">{{ d.day }}</span>
+      {% if e %}<span class="dh">{{ e.hours|hrs }}h</span>
+      {% elif can_edit %}<span class="dh none">+</span>
+      {% else %}<span class="dh none">&ndash;</span>{% endif %}
+    {% if can_edit %}</a>{% else %}</div>{% endif %}
+  {% endfor %}
+</div>
+
+{% if w.editable %}
+<div class="actions">
+  {% set target_day = w.today if w.is_current else w.sunday %}
+  <a class="action primary" href="{{ url_for('contractor.day', assignment_id=a.id, day_str=target_day.isoformat()) }}">
+    <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+    <span><b>{{ 'Log today' if w.is_current else 'Log hours' }}</b><small>{{ target_day.strftime('%A %b %-d') }}{% if w.entries.get(target_day) %} &middot; {{ w.entries.get(target_day).hours|hrs }}h logged{% endif %}</small></span>
+  </a>
+  <a class="action secondary" href="{{ url_for('contractor.expenses', assignment_id=a.id) }}">
+    <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+    <span><b>Add receipt</b><small>Snap a photo{% if w.unconfirmed %} &middot; {{ w.unconfirmed }} to confirm{% endif %}</small></span>
+  </a>
+</div>
+{% endif %}
+
+{% if w.editable and (w.entries or w.expenses) %}
+  {% if w.submitted %}
+    <div class="card soft" style="display:flex; align-items:center; gap:12px;">
+      <div class="li-ic" style="width:40px;height:40px;border-radius:12px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><path d="M5 13l4 4L19 7"/></svg></div>
+      <div style="min-width:0;"><b>Submitted {{ w.submitted.submitted_at.strftime('%a %b %-d') }}</b><div class="note">Matthew knows this week is final. If you spot a mistake you can still change it until he approves it.</div></div>
+    </div>
+  {% else %}
+    <form method="POST" action="{{ url_for('contractor.submit_week', assignment_id=a.id, monday_str=w.monday.isoformat()) }}" class="card" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:180px;">
+        <b>Finished for the week?</b>
+        <div class="note">Submit once your hours and receipts are all in. {% if w.is_current %}You can keep adding until Sunday night.{% endif %}</div>
+      </div>
+      <button class="btn amber" type="submit">Submit week</button>
+    </form>
+  {% endif %}
+{% endif %}

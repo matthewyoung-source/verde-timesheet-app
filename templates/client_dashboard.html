@@ -1,32 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Weekly approvals - Verde Solutions{% endblock %}
 {% block content %}
-<h1>{{ client.name }}</h1>
-<p class="muted">Review each week's hours and let us know if it looks right.</p>
+<div class="top">
+  <div>
+    <h1>{{ client.name }}</h1>
+    <div class="sub">Each week's hours for the people placed with you. Approve if it looks right, or dispute and tell us why.</div>
+  </div>
+</div>
 
 {% if not packets %}
-  <div class="card">
-    <p class="muted">Nothing to review yet.</p>
-  </div>
+  <div class="card"><div class="empty">Nothing to review yet. Weeks appear here on Monday mornings.</div></div>
 {% endif %}
 
 {% for p in packets %}
   <div class="card">
-    <h3>Week of {{ p.week_start.strftime('%b %d') }} - {{ p.week_end.strftime('%b %d, %Y') }}</h3>
-    <p>{{ p.assignment.contractor.name }} &middot; {{ p.total_hours }} hours{% if p.total_expenses %} &middot; ${{ '%.2f'|format(p.total_expenses) }} expenses{% endif %}</p>
-    <p><a href="{{ url_for('client.download_packet', packet_id=p.id) }}">View PDF</a></p>
-
+    <div class="card-head">
+      <div>
+        <h3>{{ p.assignment.contractor.name }}{% if p.assignment.role_title %} <span class="muted" style="font-weight:500;">&middot; {{ p.assignment.role_title }}</span>{% endif %}</h3>
+        <p class="hint">Week of {{ p.week_start.strftime('%b %-d') }} to {{ p.week_end.strftime('%b %-d, %Y') }} &middot; <b>{{ p.total_hours|hrs }} hours</b>{% if p.total_expenses %} &middot; {{ p.total_expenses|money }} expenses{% endif %}</p>
+      </div>
+      <a class="btn ghost small" href="{{ url_for('client.download_packet', packet_id=p.id) }}">View PDF</a>
+    </div>
     {% if p.client_approval_status == 'pending' %}
       <form method="POST" action="{{ url_for('client.respond', packet_id=p.id) }}">
         <label>Note (optional)</label>
         <input type="text" name="note" placeholder="e.g. looks good, or explain a dispute">
-        <button class="btn" type="submit" name="decision" value="approve">Approve</button>
-        <button class="btn secondary" type="submit" name="decision" value="dispute">Dispute</button>
+        <div class="btn-row">
+          <button class="btn" type="submit" name="decision" value="approve">Approve</button>
+          <button class="btn danger" type="submit" name="decision" value="dispute">Dispute</button>
+        </div>
       </form>
     {% elif p.client_approval_status == 'approved' %}
-      <p><span class="pill green">You approved this</span>{% if p.client_approval_note %} -- "{{ p.client_approval_note }}"{% endif %}</p>
+      <span class="pill green">You approved this{% if p.client_approved_at %} on {{ p.client_approved_at.strftime('%b %-d') }}{% endif %}</span>{% if p.client_approval_note %} <span class="muted small">"{{ p.client_approval_note }}"</span>{% endif %}
     {% elif p.client_approval_status == 'disputed' %}
-      <p><span class="pill critical">You disputed this</span>{% if p.client_approval_note %} -- "{{ p.client_approval_note }}"{% endif %}</p>
+      <span class="pill critical">You disputed this</span>{% if p.client_approval_note %} <span class="muted small">"{{ p.client_approval_note }}"</span>{% endif %}
     {% endif %}
   </div>
 {% endfor %}

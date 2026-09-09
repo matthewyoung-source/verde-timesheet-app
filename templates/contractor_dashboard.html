@@ -1,25 +1,35 @@
 {% extends "base.html" %}
-{% block title %}My Week – Verde Solutions{% endblock %}
+{% block title %}This week - Verde Solutions{% endblock %}
 {% block content %}
-<h1>This week</h1>
-<p class="muted">{{ monday.strftime('%b %d') }} – {{ sunday.strftime('%b %d, %Y') }} &middot; a combined timesheet and expense PDF is generated automatically every Sunday night.</p>
+<div class="top" style="margin-bottom:14px;">
+  <div>
+    <h1>This week</h1>
+    <div class="sub">{{ monday.strftime('%b %-d') }} to {{ sunday.strftime('%b %-d') }} &middot; <b>{{ today.strftime('%A') }}</b></div>
+  </div>
+</div>
 
-{% if not week_summary %}
+{% if not weeks %}
   <div class="card">
-    <p class="muted">You don't have an active client assignment yet. Ask Matthew to set one up.</p>
+    <h3>No active job yet</h3>
+    <p class="note" style="margin:0;">You don't have a client assignment set up. Ask Matthew and it'll appear here.</p>
   </div>
 {% endif %}
 
-{% for row in week_summary %}
-  <div class="card">
-    <h3>{{ row.assignment.client.name }}</h3>
-    {% if row.assignment.role_title %}<p class="muted">{{ row.assignment.role_title }}</p>{% endif %}
-    <p>
-      <span class="pill green">{{ row.hours_logged }} hrs logged</span>
-      <span class="pill grey">{{ row.expense_count }} expense{{ 's' if row.expense_count != 1 else '' }}</span>
-    </p>
-    <a class="btn" href="{{ url_for('contractor.timesheet', assignment_id=row.assignment.id) }}">Log hours</a>
-    <a class="btn secondary" href="{{ url_for('contractor.expenses', assignment_id=row.assignment.id) }}">Add expense</a>
+{% for w in weeks %}
+  {% include "_week_block.html" %}
+{% endfor %}
+
+{% for w in last_weeks %}
+  <div class="card warn" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px;">
+      <b>Last week isn't submitted yet</b>
+      <div class="note">{{ w.monday.strftime('%b %-d') }} to {{ w.sunday.strftime('%b %-d') }} &middot; {{ w.hours|hrs }} hrs &middot; {{ w.expenses|length }} receipt{{ '' if w.expenses|length == 1 else 's' }}. You can still add Sunday's hours or a late receipt.</div>
+    </div>
+    <a class="btn secondary small" href="{{ url_for('contractor.week', assignment_id=w.assignment.id, monday_str=w.monday.isoformat()) }}">Open last week</a>
   </div>
 {% endfor %}
+
+{% if weeks %}
+<p class="note" style="margin-top:6px;">Tap a day to log or change its hours. Your timesheet, receipts and invoice are built automatically on Sunday night. Once Matthew approves a week it locks; ask him if anything needs changing after that.</p>
+{% endif %}
 {% endblock %}

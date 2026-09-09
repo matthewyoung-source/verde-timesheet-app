@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Packets - Verde Solutions{% endblock %}
+{% block content %}
+<div class="top">
+  <div>
+    <h1>Packets</h1>
+    <div class="sub">One per contractor per week &middot; <b>{{ counts.pending }}</b> awaiting approval</div>
+  </div>
+  <div class="tools">
+    <div class="seg">
+      <a href="{{ url_for('admin.packets_list', contractor=selected_contractor) }}" class="{{ 'on' if status == 'all' else '' }}">All ({{ counts.all }})</a>
+      <a href="{{ url_for('admin.packets_list', status='pending', contractor=selected_contractor) }}" class="{{ 'on' if status == 'pending' else '' }}">Awaiting ({{ counts.pending }})</a>
+      <a href="{{ url_for('admin.packets_list', status='approved', contractor=selected_contractor) }}" class="{{ 'on' if status == 'approved' else '' }}">Approved ({{ counts.approved }})</a>
+      {% if counts.xero_failed %}<a href="{{ url_for('admin.packets_list', status='xero_failed', contractor=selected_contractor) }}" class="{{ 'on' if status == 'xero_failed' else '' }}">Xero failed ({{ counts.xero_failed }})</a>{% endif %}
+    </div>
+    {% if contractors|length > 1 %}
+    <div class="seg">
+      <a href="{{ url_for('admin.packets_list', status=status) }}" class="{{ 'on' if not selected_contractor else '' }}">Everyone</a>
+      {% for c in contractors %}<a href="{{ url_for('admin.packets_list', status=status, contractor=c.id) }}" class="{{ 'on' if selected_contractor == c.id else '' }}">{{ c.name.split(' ')[0] }}</a>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+<div class="card">
+  {% include "_packet_table.html" %}
+</div>
+<p class="note">Review opens the packet so you can adjust hours, receipt amounts or per diem days before approving. Approving locks the week for the contractor and keeps the Xero draft in sync. Full packet is the Xero invoice, timesheet and receipts merged into one PDF, ready to send.</p>
+{% endblock %}

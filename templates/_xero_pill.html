@@ -1,0 +1,3 @@
+{% if p.xero_invoice_status == 'draft_created' %}<span class="pill green">Draft created</span>
+{% elif p.xero_invoice_status == 'not_connected' or not p.xero_invoice_status %}<span class="pill grey">Not sent</span>
+{% else %}<span class="pill critical">Failed</span>{% endif %}

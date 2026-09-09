@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set w = state %}
+{% block title %}Week of {{ w.monday.strftime('%b %-d') }} - Verde Solutions{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('contractor.history') }}">&larr; Past weeks</a>
+<div class="top" style="margin-bottom:14px;">
+  <div>
+    <h1>{{ 'This week' if w.is_current else ('Last week' if w.is_last else 'Week of ' ~ w.monday.strftime('%b %-d')) }}</h1>
+    <div class="sub">{{ w.monday.strftime('%b %-d') }} to {{ w.sunday.strftime('%b %-d, %Y') }}</div>
+  </div>
+  <span class="pill {{ w.status_class }}">{{ w.status }}</span>
+</div>
+
+{% include "_week_block.html" %}
+
+<div class="card">
+  <div class="card-head"><h3>Hours by day</h3><span class="muted small">{{ w.hours|hrs }} hrs total</span></div>
+  <div class="row-list">
+    {% for d in w.days %}
+      {% set e = w.entries.get(d) %}
+      {% if e %}
+      {% set can_edit = w.editable and d <= w.today %}
+      {% if can_edit %}<a class="li" href="{{ url_for('contractor.day', assignment_id=w.assignment.id, day_str=d.isoformat()) }}">{% else %}<div class="li">{% endif %}
+        <div class="li-ic">{{ d.strftime('%a') }}</div>
+        <div class="li-body">
+          <div class="li-title">{{ d.strftime('%A, %b %-d') }}</div>
+          <div class="li-sub">{% if e.start_time and e.end_time %}{{ e.start_time.strftime('%-I:%M %p') }} to {{ e.end_time.strftime('%-I:%M %p') }}{% else %}Hours entered directly{% endif %}{% if e.notes %} &middot; {{ e.notes }}{% endif %}</div>
+        </div>
+        <div class="li-right"><b>{{ e.hours|hrs }} hrs</b></div>
+        {% if can_edit %}<svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>{% endif %}
+      {% if can_edit %}</a>{% else %}</div>{% endif %}
+      {% endif %}
+    {% endfor %}
+    {% if not w.entries %}<div class="empty">No hours logged this week.</div>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h3>Receipts</h3><span class="muted small">{{ w.expense_total|money }}</span></div>
+  <div class="row-list">
+    {% for x in w.expenses %}
+      <div class="li">
+        <img class="receipt-thumb" src="{{ url_for('uploaded_file', filename=x.photo_filename) }}" alt="receipt">
+        <div class="li-body">
+          <div class="li-title">{{ x.category or 'Expense' }}{% if x.description %} &middot; {{ x.description }}{% endif %}</div>
+          <div class="li-sub">{{ x.expense_date.strftime('%a %b %-d') }}{% if not x.is_amount_confirmed %} &middot; amount not confirmed{% endif %}</div>
+        </div>
+        <div class="li-right"><b>{{ x.amount|money if x.amount is not none else '?' }}</b></div>
+      </div>
+    {% else %}
+      <div class="empty">No receipts this week.</div>
+    {% endfor %}
+  </div>
+  {% if w.editable %}<a class="btn secondary small" style="margin-top:12px;" href="{{ url_for('contractor.expenses', assignment_id=w.assignment.id) }}">Manage receipts</a>{% endif %}
+</div>
+{% endblock %}

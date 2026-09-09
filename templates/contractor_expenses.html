@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Receipts - Verde Solutions{% endblock %}
+{% block content %}
+<div class="top" style="margin-bottom:14px;">
+  <div>
+    <h1>Receipts</h1>
+    <div class="sub">{{ assignment.client.name }} &middot; this week <b>{{ this_week.expense_total|money }}</b></div>
+  </div>
+</div>
+
+{% if not this_week.editable and not last_week.editable %}
+  <div class="card soft"><b>Locked</b><div class="note">This week and last week are both approved, so no more receipts can be added. Ask Matthew if you need one included.</div></div>
+{% else %}
+<form method="POST" enctype="multipart/form-data" class="card" id="receipt-form">
+  <label class="upload" id="upload-box">
+    <input type="file" name="photo" id="photo" accept="image/*,.heic,.heif" capture="environment" required>
+    <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    <b>Take a photo of the receipt</b>
+    <small>or choose one from your photos</small>
+  </label>
+
+  <div class="grid-2">
+    <div>
+      <label for="expense_date">Date on the receipt</label>
+      <input type="date" id="expense_date" name="expense_date" value="{{ today.isoformat() }}" min="{{ min_date }}" max="{{ max_date }}" required>
+    </div>
+    <div>
+      <label for="category">Type</label>
+      <select id="category" name="category" required>
+        {% for cat in categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <label for="description">What was it? <span class="faint" style="font-weight:500;">(optional)</span></label>
+  <input type="text" id="description" name="description" maxlength="300" placeholder="e.g. Diesel, Circle K">
+  <label for="amount">Amount <span class="faint" style="font-weight:500;">(leave blank and we'll read it from the photo)</span></label>
+  <input type="number" id="amount" name="amount" inputmode="decimal" step="0.01" min="0" placeholder="$0.00">
+  <button class="btn big" type="submit" id="submit-btn">Add receipt</button>
+</form>
+{% endif %}
+
+{% for w, label in [(this_week, 'This week'), (last_week, 'Last week')] %}
+  {% if w.expenses or loop.first %}
+  <div class="card">
+    <div class="card-head">
+      <div><h3>{{ label }}</h3><p class="hint">{{ w.monday.strftime('%b %-d') }} to {{ w.sunday.strftime('%b %-d') }}{% if w.locked %} &middot; locked{% endif %}</p></div>
+      <b>{{ w.expense_total|money }}</b>
+    </div>
+    <div class="row-list">
+      {% for x in w.expenses %}
+        <div class="li" style="align-items:flex-start;">
+          <a href="{{ url_for('uploaded_file', filename=x.photo_filename) }}" target="_blank" rel="noopener"><img class="receipt-thumb" src="{{ url_for('uploaded_file', filename=x.photo_filename) }}" alt="receipt"></a>
+          <div class="li-body">
+            <div class="li-title">{{ x.category or 'Expense' }}{% if x.description %} &middot; {{ x.description }}{% endif %}</div>
+            <div class="li-sub">{{ x.expense_date.strftime('%a %b %-d') }}</div>
+            {% if x.is_amount_confirmed %}
+              <div style="margin-top:6px;"><span class="pill green">{{ x.amount|money }} confirmed</span></div>
+            {% elif not w.editable %}
+              <div style="margin-top:6px;"><span class="pill grey">{{ x.ocr_amount|money if x.ocr_amount else 'amount unreadable' }} &middot; locked</span></div>
+            {% else %}
+              <form method="POST" action="{{ url_for('contractor.confirm_expense_amount', expense_id=x.id) }}" style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+                <span class="pill warning">{% if x.ocr_amount %}we read {{ x.ocr_amount|money }}{% else %}couldn't read amount{% endif %}</span>
+                <input type="number" step="0.01" min="0" inputmode="decimal" name="amount" value="{{ x.amount if x.amount else '' }}" placeholder="$0.00" style="width:120px; margin-bottom:0; padding:8px 10px;" required>
+                <button class="btn small" type="submit">Confirm</button>
+              </form>
+            {% endif %}
+          </div>
+          {% if w.editable %}
+          <form method="POST" action="{{ url_for('contractor.delete_expense', expense_id=x.id) }}" onsubmit="return confirm('Remove this receipt?');">
+            <button class="btn ghost small" type="submit" title="Remove" aria-label="Remove receipt">&times;</button>
+          </form>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="empty">No receipts {{ label|lower }}.</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
+
+<p class="note">Fuel, lodging, rentals and other costs you paid for on the job. Same-type receipts are combined on the invoice. Keep the paper copy until the week is approved.</p>
+<script>
+(function () {
+  var input = document.getElementById('photo');
+  if (!input) return;
+  var box = document.getElementById('upload-box');
+  var btn = document.getElementById('submit-btn');
+  input.addEventListener('change', function () {
+    if (!input.files || !input.files[0]) return;
+    box.classList.add('has-file');
+    var f = input.files[0];
+    var name = f.name || 'photo';
+    box.querySelector('b').textContent = 'Photo attached';
+    box.querySelector('small').textContent = name.length > 40 ? name.slice(0, 37) + '...' : name;
+    if (f.type && f.type.indexOf('image/') === 0 && f.type !== 'image/heic' && f.type !== 'image/heif') {
+      var existing = box.querySelector('img.preview');
+      if (existing) existing.remove();
+      var img = document.createElement('img');
+      img.className = 'preview';
+      img.src = URL.createObjectURL(f);
+      box.appendChild(img);
+    }
+  });
+  document.getElementById('receipt-form').addEventListener('submit', function () {
+    btn.disabled = true; btn.textContent = 'Uploading and reading the amount...';
+  });
+})();
+</script>
+{% endblock %}

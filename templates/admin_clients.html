@@ -1,10 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Clients - Verde Solutions{% endblock %}
 {% block content %}
-<a class="muted" href="{{ url_for('admin.dashboard') }}">&larr; Back</a>
-<h1>Clients</h1>
+<div class="top">
+  <div>
+    <h1>Clients</h1>
+    <div class="sub"><b>{{ clients|length }}</b> client{{ '' if clients|length == 1 else 's' }} &middot; who contractors are placed with and invoiced to</div>
+  </div>
+  <div class="tools"><a class="btn small" href="#add-client">Add client</a></div>
+</div>
 
-<div class="card">
+{% for c in clients %}
+  <div class="card">
+    <div class="card-head">
+      <div><h3>{{ c.name }}</h3><p class="hint">{{ c.billing_email or 'No billing email on file' }}{% if c.xero_contact_id %} &middot; linked to Xero{% endif %}</p></div>
+      <form method="POST" action="{{ url_for('admin.toggle_client_approval', client_id=c.id) }}" style="display:flex; gap:10px; align-items:center;">
+        {% if c.requires_client_approval %}<span class="pill green">Client sign-off on</span>{% else %}<span class="pill grey">Client sign-off off</span>{% endif %}
+        <button class="btn ghost small" type="submit">{{ 'Turn off' if c.requires_client_approval else 'Turn on' }}</button>
+      </form>
+    </div>
+    <p class="note">{% if c.requires_client_approval %}{{ c.name }}'s contacts get a login to approve or dispute each week's packet. It's a record only and never holds up the Xero draft.{% else %}You approve weeks yourself after the Monday call. Turn sign-off on if this client wants to formally approve each week.{% endif %}</p>
+    <details>
+      <summary>Add a client contact login</summary>
+      <form method="POST" action="{{ url_for('admin.create_client_contact', client_id=c.id) }}" style="margin-top:10px;">
+        <div class="grid-2">
+          <div><label>Contact name</label><input type="text" name="name" required></div>
+          <div><label>Email</label><input type="email" name="email" required></div>
+        </div>
+        <button class="btn small" type="submit">Add contact</button>
+      </form>
+    </details>
+  </div>
+{% endfor %}
+
+<div class="card form-card" id="add-client">
   <h3>Add a client</h3>
   <form method="POST" action="{{ url_for('admin.clients') }}">
     <label>Client name</label>
@@ -14,36 +42,4 @@
     <button class="btn" type="submit">Add client</button>
   </form>
 </div>
-
-{% for c in clients %}
-  <div class="card">
-    <h3>{{ c.name }}</h3>
-    <p class="muted">{{ c.billing_email or 'no billing email on file' }}</p>
-
-    <form method="POST" action="{{ url_for('admin.toggle_client_approval', client_id=c.id) }}" style="margin-bottom:14px;">
-      <p>
-        {% if c.requires_client_approval %}
-          <span class="pill green">Client sign-off required</span>
-        {% else %}
-          <span class="pill grey">Client sign-off not required</span>
-        {% endif %}
-        <button class="btn secondary" type="submit" style="padding:6px 10px; margin-left:8px;">
-          {{ 'Turn off' if c.requires_client_approval else 'Turn on' }}
-        </button>
-      </p>
-      <p class="muted">When on, {{ c.name }}'s contact(s) below get a login to approve or dispute each week's packet. This is a record only -- it never blocks the Xero draft invoice.</p>
-    </form>
-
-    <details>
-      <summary style="cursor:pointer; color: var(--green); font-weight:600;">+ Add a client contact login</summary>
-      <form method="POST" action="{{ url_for('admin.create_client_contact', client_id=c.id) }}" style="margin-top:10px;">
-        <div class="grid-2">
-          <div><label>Contact name</label><input type="text" name="name" required></div>
-          <div><label>Email</label><input type="email" name="email" required></div>
-        </div>
-        <button class="btn" type="submit">Add contact</button>
-      </form>
-    </details>
-  </div>
-{% endfor %}
 {% endblock %}

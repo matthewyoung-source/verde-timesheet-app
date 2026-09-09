@@ -1,0 +1,5 @@
+{# Approval + client + Xero status pills for a WeeklyPacket `p` #}
+{% if p.approval_status == 'approved' %}<span class="pill green">Approved</span>{% else %}<span class="pill warning">Awaiting approval</span>{% endif %}
+{% if p.client_approval_status == 'pending' %}<span class="pill warning">Client pending</span>
+{% elif p.client_approval_status == 'approved' %}<span class="pill green">Client approved</span>
+{% elif p.client_approval_status == 'disputed' %}<span class="pill critical">Client disputed</span>{% endif %}

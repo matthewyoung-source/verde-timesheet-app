@@ -1,75 +1,53 @@
 {% extends "base.html" %}
 {% block title %}Reports - Verde Solutions{% endblock %}
 {% block content %}
-<a class="muted" href="{{ url_for('admin.dashboard') }}">&larr; Back</a>
-<h1>Reports</h1>
+<div class="top">
+  <div>
+    <h1>Reports</h1>
+    <div class="sub">Totals from every generated packet. Billed is hours &times; the client rate, before per diem and expenses.</div>
+  </div>
+</div>
 
-<div class="card">
-  <h3>Packet status overview</h3>
-  <p>
-    <span class="pill green">Approved: {{ status_counts.get('approved', 0) }}</span>
-    <span class="pill warning">Awaiting approval: {{ status_counts.get('pending', 0) }}</span>
-  </p>
-  <p>
-    <span class="pill warning">Client sign-off pending: {{ client_approval_counts.get('pending', 0) }}</span>
-    <span class="pill green">Client approved: {{ client_approval_counts.get('approved', 0) }}</span>
-    <span class="pill critical">Client disputed: {{ client_approval_counts.get('disputed', 0) }}</span>
-  </p>
+<div class="kpis">
+  <a class="kpi attention {{ 'hot' if status_counts.get('pending', 0) else '' }}" href="{{ url_for('admin.packets_list', status='pending') }}"><div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="lab">Awaiting approval</div><div class="val">{{ status_counts.get('pending', 0) }}</div><div class="rate">packets</div></a>
+  <a class="kpi hours" href="{{ url_for('admin.packets_list', status='approved') }}"><div class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><div class="lab">Approved &amp; locked</div><div class="val">{{ status_counts.get('approved', 0) }}</div><div class="rate">packets</div></a>
+  <div class="kpi people"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg></div><div class="lab">Client sign-offs</div><div class="val">{{ client_approval_counts.get('approved', 0) }}</div><div class="rate">{{ client_approval_counts.get('pending', 0) }} pending &middot; {{ client_approval_counts.get('disputed', 0) }} disputed</div></div>
+  <div class="kpi money"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="lab">Billed to date</div><div class="val">{{ (client_stats|sum(attribute='3'))|money if client_stats else '$0.00' }}</div><div class="rate">hours only, all clients</div></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="card-head"><div><h3>By client</h3></div></div>
+    {% if not client_stats %}<div class="empty">No packets generated yet.</div>{% else %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Client</th><th class="num">Hours</th><th class="num">Expenses</th><th class="num">Billed</th></tr></thead>
+      <tbody>{% for name, hours, expenses, billed in client_stats %}<tr><td><b>{{ name }}</b></td><td class="num">{{ hours|hrs }}</td><td class="num">{{ expenses|money }}</td><td class="num"><b>{{ billed|money }}</b></td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-head"><div><h3>By contractor</h3><p class="hint">What clients are charged for their time, not what they're paid.</p></div></div>
+    {% if not contractor_stats %}<div class="empty">No packets generated yet.</div>{% else %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Contractor</th><th class="num">Hours</th><th class="num">Billed</th></tr></thead>
+      <tbody>{% for name, hours, billed in contractor_stats %}<tr><td><b>{{ name }}</b></td><td class="num">{{ hours|hrs }}</td><td class="num"><b>{{ billed|money }}</b></td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+  </div>
 </div>
 
 {% if pending_packets %}
-  <div class="card">
-    <h3>Awaiting your approval</h3>
-    <table>
-      <tr><th>Contractor</th><th>Client</th><th>Week of</th><th>Hours</th><th></th></tr>
-      {% for p in pending_packets %}
-        <tr>
-          <td>{{ p.assignment.contractor.name }}</td>
-          <td>{{ p.assignment.client.name }}</td>
-          <td>{{ p.week_start.strftime('%m/%d') }}</td>
-          <td>{{ p.total_hours }}</td>
-          <td><a href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">Review</a></td>
-        </tr>
-      {% endfor %}
-    </table>
+<div class="card">
+  <div class="card-head"><div><h3>Awaiting your approval</h3></div><a class="btn ghost small" href="{{ url_for('admin.packets_list', status='pending') }}">Open packets</a></div>
+  <div class="row-list">
+    {% for p in pending_packets %}
+      <a class="li" href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">
+        <div class="li-ic amber">{{ p.week_start.strftime('%-d') }}</div>
+        <div class="li-body"><div class="li-title">{{ p.assignment.contractor.name }} &middot; {{ p.assignment.client.name }}</div><div class="li-sub">Week of {{ p.week_start.strftime('%b %-d') }} &middot; {{ p.total_hours|hrs }} hrs</div></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    {% endfor %}
   </div>
+</div>
 {% endif %}
-
-<div class="card">
-  <h3>Hours &amp; expenses by client</h3>
-  {% if not client_stats %}
-    <p class="muted">No packets generated yet.</p>
-  {% else %}
-    <table>
-      <tr><th>Client</th><th>Hours</th><th>Expenses</th><th>Billed (hours &times; rate)</th></tr>
-      {% for name, hours, expenses, billed in client_stats %}
-        <tr>
-          <td>{{ name }}</td>
-          <td>{{ hours }}</td>
-          <td>${{ '%.2f'|format(expenses) }}</td>
-          <td>${{ '%.2f'|format(billed) }}</td>
-        </tr>
-      {% endfor %}
-    </table>
-  {% endif %}
-</div>
-
-<div class="card">
-  <h3>Hours by contractor</h3>
-  <p class="muted">"Billed" is what clients are charged for this contractor's hours -- this app doesn't track a separate contractor pay rate, so it isn't what the contractor is paid.</p>
-  {% if not contractor_stats %}
-    <p class="muted">No packets generated yet.</p>
-  {% else %}
-    <table>
-      <tr><th>Contractor</th><th>Hours</th><th>Billed</th></tr>
-      {% for name, hours, billed in contractor_stats %}
-        <tr>
-          <td>{{ name }}</td>
-          <td>{{ hours }}</td>
-          <td>${{ '%.2f'|format(billed) }}</td>
-        </tr>
-      {% endfor %}
-    </table>
-  {% endif %}
-</div>
 {% endblock %}

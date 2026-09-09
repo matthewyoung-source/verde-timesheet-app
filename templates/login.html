@@ -1,21 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Log in - Verde Solutions{% endblock %}
-{% block content %}
-<div class="card" style="max-width:380px; margin: 40px auto;">
-  <h2>Log in</h2>
+{% block auth_content %}
+<div class="auth-card">
+  <div class="auth-logo"><img src="{{ url_for('static', filename='logo-light.png') }}" alt="Verde Solutions"></div>
+  <h1>Welcome back</h1>
+  <p class="hint" style="text-align:center;">Sign in to log your hours and receipts.</p>
   <form method="POST">
     <label>Email</label>
-    <input type="email" name="email" required autofocus autocapitalize="off" autocorrect="off" spellcheck="false">
+    <input type="email" name="email" required autofocus autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="you@example.com">
     <label>Password</label>
-    <input type="password" name="password" id="password" required autocapitalize="off" autocorrect="off" spellcheck="false">
-    <label style="font-weight:normal; margin-top:6px; display:flex; align-items:center; gap:6px;">
-      <input type="checkbox" id="show-password" style="width:auto;"> Show password
-    </label>
-    <button class="btn" type="submit" style="width:100%; margin-top:10px;">Log in</button>
+    <input type="password" name="password" id="password" required autocomplete="current-password" placeholder="Your password">
+    <label class="check"><input type="checkbox" id="show-password"> Show password</label>
+    <button class="btn" type="submit">Log in</button>
   </form>
-  <p class="muted" style="margin-top:14px; text-align:center;">
-    <a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
-  </p>
+  <p class="auth-foot"><a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a></p>
 </div>
 <script>
   document.getElementById('show-password').addEventListener('change', function () {

@@ -1,118 +1,117 @@
 {% extends "base.html" %}
 {% block title %}Packet - Verde Solutions{% endblock %}
 {% block content %}
-<a class="muted" href="{{ url_for('admin.dashboard') }}">&larr; Back</a>
-<h1>{{ assignment.contractor.name }} &middot; {{ assignment.client.name }}</h1>
-<p class="muted">Week of {{ packet.week_start.strftime('%b %d') }} - {{ packet.week_end.strftime('%b %d, %Y') }}</p>
+<a class="back-link" href="{{ url_for('admin.packets_list') }}">&larr; Packets</a>
+<div class="top">
+  <div>
+    <h1>{{ assignment.contractor.name }} &middot; {{ assignment.client.name }}</h1>
+    <div class="sub">Week of <b>{{ packet.week_start.strftime('%b %-d') }} to {{ packet.week_end.strftime('%b %-d, %Y') }}</b>{% if assignment.role_title %} &middot; {{ assignment.role_title }}{% endif %}</div>
+  </div>
+  <div class="tools">
+    <a class="btn secondary small" href="{{ url_for('admin.download_packet', packet_id=packet.id) }}">Timesheet PDF</a>
+    {% if packet.xero_invoice_id %}<a class="btn small" href="{{ url_for('admin.download_full_packet', packet_id=packet.id) }}">Download full packet</a>{% endif %}
+  </div>
+</div>
 
-<div class="card">
-  {% if packet.approval_status == 'approved' %}
-    <p><span class="pill green">Approved &amp; locked</span> on {{ packet.approved_at.strftime('%m/%d/%Y %I:%M %p') }} -- the contractor can no longer edit this week. You still can.</p>
-  {% else %}
-    <p><span class="pill warning">Awaiting your approval</span> -- this is where you record the sign-off from your Monday morning call.</p>
-  {% endif %}
+<div class="kpis">
+  <div class="kpi hours"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div class="lab">Total hours</div><div class="val">{{ figures.total_hours|hrs }}</div><div class="rate">{{ figures.regular_hours|hrs }} regular{% if figures.overtime_hours %} + {{ figures.overtime_hours|hrs }} overtime{% endif %}</div></div>
+  <div class="kpi money"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></div><div class="lab">Expenses</div><div class="val">{{ figures.total_expenses|money }}</div><div class="rate">{{ expenses|length }} receipt{{ '' if expenses|length == 1 else 's' }}</div></div>
+  <div class="kpi people"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><div class="lab">Invoice total</div><div class="val">{{ figures.invoice_total|money }}</div><div class="rate">{{ packet.xero_reference or 'no reference yet' }}</div></div>
+  <div class="kpi attention {{ 'hot' if packet.approval_status != 'approved' else '' }}"><div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div><div class="lab">Status</div><div class="val" style="font-size:20px;">{% if packet.approval_status == 'approved' %}Approved{% else %}Awaiting you{% endif %}</div><div class="rate">{% if packet.approval_status == 'approved' %}locked {{ packet.approved_at.strftime('%b %-d, %-I:%M %p') }}{% else %}approve to lock the week{% endif %}</div></div>
+</div>
 
-  {% if packet.client_approval_status == 'pending' %}
-    <p><span class="pill warning">Client sign-off pending</span> -- {{ assignment.client.name }} hasn't responded yet. Doesn't hold up Xero.</p>
-  {% elif packet.client_approval_status == 'approved' %}
-    <p><span class="pill green">Client approved</span> on {{ packet.client_approved_at.strftime('%m/%d/%Y') if packet.client_approved_at else '' }}{% if packet.client_approval_note %} -- "{{ packet.client_approval_note }}"{% endif %}</p>
-  {% elif packet.client_approval_status == 'disputed' %}
-    <p><span class="pill critical">Client disputed</span>{% if packet.client_approval_note %} -- "{{ packet.client_approval_note }}"{% endif %}</p>
-  {% endif %}
-
-  <p>
-    {% if packet.xero_invoice_status == 'draft_created' %}<span class="pill green">Xero draft created</span>
-    {% elif packet.xero_invoice_status == 'not_connected' %}<span class="pill grey">Xero not connected</span>
-    {% else %}<span class="pill critical">Xero sync failed</span>{% endif %}
-    &middot; <a href="{{ url_for('admin.download_packet', packet_id=packet.id) }}">Download timesheet PDF</a>
-    {% if packet.xero_invoice_id %}&middot; <a href="{{ url_for('admin.download_full_packet', packet_id=packet.id) }}"><strong>Download full packet</strong> (Xero invoice + timesheet + receipts)</a>{% endif %}
-  </p>
+<div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  {% set p = packet %}{% include "_packet_pills.html" %}{% include "_xero_pill.html" %}
+  {% if packet.client_approval_note %}<span class="muted small">Client note: "{{ packet.client_approval_note }}"</span>{% endif %}
+  <span class="muted small" style="margin-left:auto;">Generated {{ packet.generated_at.strftime('%b %-d, %-I:%M %p') }}</span>
 </div>
 
 <form method="POST">
-  <div class="card">
-    <h3>Hours</h3>
-    {% if not entries %}
-      <p class="muted">No hours logged this week.</p>
-    {% else %}
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><div><h3>Hours</h3><p class="hint">Times win over the hours figure{% if assignment.daily_break_hours %} (less the {{ assignment.daily_break_hours|hrs }} hr break){% endif %}.</p></div></div>
+      {% if not entries %}
+        <div class="empty">No hours logged this week.</div>
+      {% else %}
+      <div class="table-wrap">
       <table>
-        <tr><th>Day</th><th>Start</th><th>End</th><th>Hours</th><th>Notes</th></tr>
+        <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Hours</th><th>Notes</th></tr></thead>
+        <tbody>
         {% for e in entries %}
           <tr>
-            <td>{{ e.work_date.strftime('%a %m/%d') }}</td>
-            <td><input type="time" name="start_{{ e.id }}" value="{{ e.start_time.strftime('%H:%M') if e.start_time else '' }}" style="width:110px; margin-bottom:0;"></td>
-            <td><input type="time" name="end_{{ e.id }}" value="{{ e.end_time.strftime('%H:%M') if e.end_time else '' }}" style="width:110px; margin-bottom:0;"></td>
-            <td><input type="number" step="0.25" min="0" max="24" name="hours_{{ e.id }}" value="{{ e.hours }}" style="width:80px; margin-bottom:0;"></td>
-            <td>{{ e.notes or '' }}</td>
+            <td><b>{{ e.work_date.strftime('%a') }}</b> <span class="muted">{{ e.work_date.strftime('%-m/%-d') }}</span></td>
+            <td><input type="time" name="start_{{ e.id }}" value="{{ e.start_time.strftime('%H:%M') if e.start_time else '' }}" style="width:110px;"></td>
+            <td><input type="time" name="end_{{ e.id }}" value="{{ e.end_time.strftime('%H:%M') if e.end_time else '' }}" style="width:110px;"></td>
+            <td><input type="number" step="0.25" min="0" max="24" name="hours_{{ e.id }}" value="{{ e.hours|hrs }}" style="width:80px;"></td>
+            <td class="muted small">{{ e.notes or '' }}</td>
           </tr>
         {% endfor %}
+        </tbody>
       </table>
-      <p class="muted">If both times are set they take priority and hours recalculate{% if assignment.daily_break_hours %} (less the {{ assignment.daily_break_hours }} hr break){% endif %}.</p>
-    {% endif %}
-    <p>
-      <strong>Regular:</strong> {{ '%.2f'|format(figures.regular_hours) }} @ ${{ '%.2f'|format(figures.billing_rate) }}
-      &nbsp;&middot;&nbsp; <strong>Overtime:</strong> {{ '%.2f'|format(figures.overtime_hours) }} @ ${{ '%.2f'|format(figures.overtime_rate) }}
-      &nbsp;&middot;&nbsp; <strong>Total hours:</strong> {{ '%.2f'|format(figures.total_hours) }}
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>Per diem</h3>
-    {% if figures.per_diem_bill_rate %}
-      <div style="display:flex; gap:10px; align-items:center;">
-        <label style="margin:0;">Days this week</label>
-        <input type="number" min="0" max="7" name="per_diem_days" value="{{ figures.per_diem_days }}" style="width:70px; margin-bottom:0;">
-        <span class="muted">@ ${{ '%.2f'|format(figures.per_diem_bill_rate) }}/day billed, ${{ '%.2f'|format(figures.per_diem_contractor_rate) }}/day to contractor</span>
       </div>
-    {% else %}
-      <p class="muted">No per diem rate on this assignment. Set one under Contractors &rarr; Billing &amp; invoice details.</p>
-    {% endif %}
+      {% endif %}
+      <p class="note" style="margin-top:12px;"><b>Regular</b> {{ figures.regular_hours|hrs }} @ {{ figures.billing_rate|money }} &middot; <b>Overtime</b> {{ figures.overtime_hours|hrs }} @ {{ figures.overtime_rate|money }}</p>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-head"><div><h3>Per diem</h3></div></div>
+        {% if figures.per_diem_bill_rate %}
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label style="margin:0;">Days this week</label>
+            <input type="number" min="0" max="7" name="per_diem_days" value="{{ figures.per_diem_days }}" style="width:70px; margin:0;">
+            <span class="muted small">@ {{ figures.per_diem_bill_rate|money }}/day billed, {{ figures.per_diem_contractor_rate|money }}/day to contractor</span>
+          </div>
+        {% else %}
+          <p class="note" style="margin:0;">No per diem on this assignment. Set one under Contractors, Billing &amp; invoice details.</p>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h3>Xero draft preview</h3><p class="hint">Ref <b>{{ packet.xero_reference or '' }}</b></p></div></div>
+        <table>
+          <thead><tr><th>Line</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>
+          <tbody>
+          {% for line in figures.lines %}
+            <tr><td>{{ line.description }}</td><td class="num">{{ line.quantity|hrs }}</td><td class="num">{{ line.unit_amount|money }}</td><td class="num">{{ (line.quantity * line.unit_amount)|money }}</td></tr>
+          {% endfor %}
+            <tr><td colspan="3"><b>Invoice total</b></td><td class="num"><b>{{ figures.invoice_total|money }}</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div class="card">
-    <h3>Expenses</h3>
+    <div class="card-head"><div><h3>Expenses</h3><p class="hint">Same-type receipts combine into one invoice line. Click a photo to open it full size.</p></div></div>
     {% if not expenses %}
-      <p class="muted">No expenses submitted this week.</p>
+      <div class="empty">No expenses submitted this week.</div>
     {% else %}
-      <table>
-        <tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th></tr>
-        {% for exp in expenses %}
-          <tr>
-            <td>{{ exp.expense_date.strftime('%m/%d/%Y') }}</td>
-            <td>
-              <select name="category_{{ exp.id }}" style="margin-bottom:0;">
-                {% for cat in categories %}<option value="{{ cat }}" {{ 'selected' if (exp.category or 'Other') == cat }}>{{ cat }}</option>{% endfor %}
-              </select>
-            </td>
-            <td>{{ exp.description or '' }}</td>
-            <td><input type="number" step="0.01" min="0" name="amount_{{ exp.id }}" value="{{ exp.amount if exp.amount is not none else '' }}" style="width:100px; margin-bottom:0;"></td>
-          </tr>
-        {% endfor %}
-      </table>
-    {% endif %}
-    <p><strong>Total expenses: ${{ '%.2f'|format(figures.total_expenses) }}</strong> <span class="muted">(same-type receipts combine into one invoice line)</span></p>
-  </div>
-
-  <div class="card">
-    <h3>Xero draft invoice preview</h3>
-    <p class="muted">Reference: <strong>{{ packet.xero_reference or '' }}</strong></p>
+    <div class="table-wrap">
     <table>
-      <tr><th>Description</th><th>Qty</th><th>Unit</th><th>Amount</th></tr>
-      {% for line in figures.lines %}
+      <thead><tr><th></th><th>Date</th><th>Type</th><th>Description</th><th>Read from photo</th><th>Amount</th></tr></thead>
+      <tbody>
+      {% for exp in expenses %}
         <tr>
-          <td>{{ line.description }}</td>
-          <td>{{ '%.2f'|format(line.quantity) }}</td>
-          <td>${{ '%.2f'|format(line.unit_amount) }}</td>
-          <td>${{ '%.2f'|format(line.quantity * line.unit_amount) }}</td>
+          <td><a href="{{ url_for('uploaded_file', filename=exp.photo_filename) }}" target="_blank" rel="noopener"><img class="receipt-thumb" style="width:44px;height:44px;" src="{{ url_for('uploaded_file', filename=exp.photo_filename) }}" alt="receipt"></a></td>
+          <td>{{ exp.expense_date.strftime('%a %-m/%-d') }}</td>
+          <td><select name="category_{{ exp.id }}" style="width:150px;">{% for cat in categories %}<option value="{{ cat }}" {{ 'selected' if (exp.category or 'Other') == cat }}>{{ cat }}</option>{% endfor %}</select></td>
+          <td>{{ exp.description or '' }}</td>
+          <td class="muted small">{{ exp.ocr_amount|money if exp.ocr_amount else 'unreadable' }}{% if exp.is_amount_confirmed %} <span class="pill green">confirmed</span>{% else %} <span class="pill warning">unconfirmed</span>{% endif %}</td>
+          <td><input type="number" step="0.01" min="0" name="amount_{{ exp.id }}" value="{{ exp.amount if exp.amount is not none else '' }}" style="width:110px;"></td>
         </tr>
       {% endfor %}
-      <tr><td colspan="3"><strong>Invoice total</strong></td><td><strong>${{ '%.2f'|format(figures.invoice_total) }}</strong></td></tr>
+      </tbody>
     </table>
+    </div>
+    {% endif %}
   </div>
 
-  <button class="btn secondary" type="submit" name="action" value="save">Save changes &amp; regenerate PDF</button>
-  {% if packet.approval_status != 'approved' %}
-    <button class="btn" type="submit" name="action" value="approve">Approve &amp; lock</button>
-  {% endif %}
+  <div class="btn-row">
+    <button class="btn secondary" type="submit" name="action" value="save">Save changes &amp; regenerate PDF</button>
+    {% if packet.approval_status != 'approved' %}
+      <button class="btn" type="submit" name="action" value="approve">Approve &amp; lock week</button>
+    {% endif %}
+  </div>
 </form>
 {% endblock %}
