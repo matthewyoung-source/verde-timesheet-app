@@ -55,7 +55,7 @@
   {% if w.submitted %}
     <div class="card soft" style="display:flex; align-items:center; gap:12px;">
       <div class="li-ic" style="width:40px;height:40px;border-radius:12px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><path d="M5 13l4 4L19 7"/></svg></div>
-      <div style="min-width:0;"><b>Submitted {{ w.submitted.submitted_at.strftime('%a %b %-d') }}</b><div class="note">Matthew knows this week is final. If you spot a mistake you can still change it until he approves it.</div></div>
+      <div style="min-width:0;"><b>Submitted {{ w.submitted.submitted_at.strftime('%a %b %-d') }}</b><div class="note">Verde knows this week is final. If you spot a mistake you can still change it until it's approved.</div></div>
     </div>
   {% else %}
     <form method="POST" action="{{ url_for('contractor.submit_week', assignment_id=a.id, monday_str=w.monday.isoformat()) }}" class="card" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">

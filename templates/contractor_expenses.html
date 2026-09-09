@@ -9,7 +9,7 @@
 </div>
 
 {% if not this_week.editable and not last_week.editable %}
-  <div class="card soft"><b>Locked</b><div class="note">This week and last week are both approved, so no more receipts can be added. Ask Matthew if you need one included.</div></div>
+  <div class="card soft"><b>Locked</b><div class="note">This week and last week are both approved, so no more receipts can be added. Ask your contact at Verde if you need one included.</div></div>
 {% else %}
 <form method="POST" enctype="multipart/form-data" class="card" id="receipt-form">
   <label class="upload" id="upload-box">
@@ -79,7 +79,7 @@
   {% endif %}
 {% endfor %}
 
-<p class="note">Fuel, lodging, rentals and other costs you paid for on the job. Same-type receipts are combined on the invoice. Keep the paper copy until the week is approved.</p>
+<p class="note">Fuel, rentals and other costs you paid for on the job. Same-type receipts are combined on the invoice. Keep the paper copy until the week is approved.</p>
 <script>
 (function () {
   var input = document.getElementById('photo');

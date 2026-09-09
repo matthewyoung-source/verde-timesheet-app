@@ -14,7 +14,7 @@
 {% if not state.editable %}
   <div class="card soft">
     <b>{{ 'Approved & locked' if state.locked else 'This week is closed' }}</b>
-    <div class="note">{% if state.locked %}Matthew has approved this week, so it can only be changed by him.{% else %}Only this week and last week can be edited from your phone. Ask Matthew if this needs a change.{% endif %}</div>
+    <div class="note">{% if state.locked %}Verde has approved this week, so it can only be changed by your contact at Verde.{% else %}Only this week and last week can be edited from your phone. Ask your contact at Verde if this needs a change.{% endif %}</div>
   </div>
   <div class="card">
     {% if entry %}
