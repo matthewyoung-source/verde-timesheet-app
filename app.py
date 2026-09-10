@@ -50,11 +50,13 @@ def create_app(config_class=Config):
     from contractor import contractor_bp
     from admin import admin_bp
     from client import client_bp
+    from website import site_bp, is_site_host, render_site
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(contractor_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(client_bp)
+    app.register_blueprint(site_bp)
 
     from charts import ring_svg
     app.jinja_env.globals["ring_svg"] = ring_svg
@@ -89,6 +91,10 @@ def create_app(config_class=Config):
 
     @app.route("/")
     def index():
+        # verdecontracts.com serves the public website; the app's own host
+        # goes straight to login as before.
+        if is_site_host():
+            return render_site()
         return redirect(url_for("auth.login"))
 
     @app.route("/uploads/<filename>")
