@@ -16,10 +16,16 @@
         <div class="avatar" style="width:40px;height:40px;font-size:16px;">{{ c.name[:1]|upper }}</div>
         <div><h3>{{ c.name }}</h3><p class="hint">{{ c.email }}{% if not c.active %} &middot; <span class="pill grey">inactive</span>{% endif %}</p></div>
       </div>
-      <form method="POST" action="{{ url_for('admin.reset_password', user_id=c.id) }}" onsubmit="return confirm('Generate a new temporary password for {{ c.name }}?');">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <form method="POST" action="{{ url_for('admin.reset_password', user_id=c.id) }}" onsubmit="return confirm('Generate a new temporary password for {{ c.name }}?');">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn ghost small" type="submit">Reset password</button>
-      </form>
+          <button class="btn ghost small" type="submit">Reset password</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin.delete_contractor', user_id=c.id) }}" onsubmit="return confirm('Delete {{ c.name }} completely? This removes their login, assignments, hours, receipts and packets. It cannot be undone. Accounts with packets already invoiced in Xero are protected and will be refused.');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn danger small" type="submit">Delete</button>
+        </form>
+      </div>
     </div>
 
     {% for a in c.assignments %}
