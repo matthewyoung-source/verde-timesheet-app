@@ -312,6 +312,73 @@ def reset_password(user_id):
     return redirect(request.referrer or url_for("admin.dashboard"))
 
 
+@admin_bp.route("/contractors/<int:user_id>/delete", methods=["POST"])
+@login_required
+def delete_contractor(user_id):
+    """Remove a contractor account and everything attached to it: assignments,
+    hours, receipts (and the photo files), week submissions, packets (and the
+    PDFs). Meant for test accounts and people who never started. Refused when
+    any packet has already gone to Xero, because that invoice is a real
+    financial record; end the assignment instead in that case."""
+    _require_admin()
+    user = User.query.get_or_404(user_id)
+    if user.role != "contractor":
+        flash("Only contractor accounts can be deleted here.", "error")
+        return redirect(url_for("admin.contractors"))
+
+    assignments = user.assignments.all()
+    assignment_ids = [a.id for a in assignments]
+    packets = (
+        WeeklyPacket.query.filter(WeeklyPacket.assignment_id.in_(assignment_ids)).all()
+        if assignment_ids else []
+    )
+    invoiced = [p for p in packets if p.xero_invoice_id]
+    if invoiced:
+        flash(
+            f"{user.name} has {len(invoiced)} packet(s) already invoiced in Xero, so the account "
+            "can't be deleted. End the assignment instead to stop further submissions.",
+            "error",
+        )
+        return redirect(url_for("admin.contractors"))
+
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    pdf_dir = current_app.config["PDF_FOLDER"]
+    removed_files = 0
+    if assignment_ids:
+        for exp in Expense.query.filter(Expense.assignment_id.in_(assignment_ids)).all():
+            path = os.path.join(upload_dir, exp.photo_filename or "")
+            if exp.photo_filename and os.path.isfile(path):
+                try:
+                    os.remove(path)
+                    removed_files += 1
+                except OSError:
+                    pass
+            db.session.delete(exp)
+        for packet in packets:
+            path = os.path.join(pdf_dir, packet.pdf_filename or "")
+            if packet.pdf_filename and os.path.isfile(path):
+                try:
+                    os.remove(path)
+                    removed_files += 1
+                except OSError:
+                    pass
+            db.session.delete(packet)
+        TimesheetEntry.query.filter(TimesheetEntry.assignment_id.in_(assignment_ids)).delete(synchronize_session=False)
+        WeekSubmission.query.filter(WeekSubmission.assignment_id.in_(assignment_ids)).delete(synchronize_session=False)
+        for a in assignments:
+            db.session.delete(a)
+
+    name = user.name
+    db.session.delete(user)
+    db.session.commit()
+    flash(
+        f"Deleted {name}: {len(assignments)} assignment(s), {len(packets)} packet(s) and "
+        f"{removed_files} file(s) removed.",
+        "success",
+    )
+    return redirect(url_for("admin.contractors"))
+
+
 @admin_bp.route("/assignments/<int:assignment_id>/end", methods=["POST"])
 @login_required
 def end_assignment(assignment_id):
