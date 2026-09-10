@@ -102,13 +102,13 @@
   </div>
 
   <div class="card">
-    <div class="card-head"><div><h3>Expenses</h3><p class="hint">Same-type receipts combine into one invoice line. "Billed to client" is the receipt plus {{ figures.expense_markup|money }} unless you type a figure; blank means default. Click a photo to open it full size.</p></div></div>
+    <div class="card-head"><div><h3>Expenses</h3><p class="hint">Same-type receipts combine into one invoice line, billed to the client at cost. Click a photo to open it full size.</p></div></div>
     {% if not expenses %}
       <div class="empty">No expenses submitted this week.</div>
     {% else %}
     <div class="table-wrap">
     <table>
-      <thead><tr><th></th><th>Date</th><th>Type</th><th>Description</th><th>Read from photo</th><th>Receipt</th><th>Billed to client</th></tr></thead>
+      <thead><tr><th></th><th>Date</th><th>Type</th><th>Description</th><th>Read from photo</th><th>Amount</th></tr></thead>
       <tbody>
       {% for exp in expenses %}
         <tr>
@@ -118,7 +118,6 @@
           <td>{{ exp.description or '' }}</td>
           <td class="muted small">{{ exp.ocr_amount|money if exp.ocr_amount else 'unreadable' }}{% if exp.is_amount_confirmed %} <span class="pill green">confirmed</span>{% else %} <span class="pill warning">unconfirmed</span>{% endif %}</td>
           <td><input type="number" step="0.01" min="0" name="amount_{{ exp.id }}" value="{{ exp.amount if exp.amount is not none else '' }}" style="width:110px;"></td>
-          <td><input type="number" step="0.01" min="0" name="billed_{{ exp.id }}" value="{{ exp.billed_amount if exp.billed_amount is not none else '' }}" placeholder="{{ '%.2f'|format((exp.amount or 0)|float + figures.expense_markup) if exp.amount else '' }}" style="width:110px;"></td>
         </tr>
       {% endfor %}
       </tbody>

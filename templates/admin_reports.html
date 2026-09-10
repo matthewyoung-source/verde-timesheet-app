@@ -36,6 +36,10 @@
   </div>
 </div>
 
+<div class="card">
+  <div class="card-head"><div><h3>Backup</h3><p class="hint">Every receipt photo, every packet PDF and all the data in one zip. Worth downloading once a month and keeping in Drive.</p></div><a class="btn secondary small" href="{{ url_for('admin.backup') }}">Download full backup</a></div>
+</div>
+
 {% if pending_packets %}
 <div class="card">
   <div class="card-head"><div><h3>Awaiting your approval</h3></div><a class="btn ghost small" href="{{ url_for('admin.packets_list', status='pending') }}">Open packets</a></div>
