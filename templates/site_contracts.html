@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verde Contracts | Contractor timesheets, receipts and invoicing for staffing firms</title>
+  <meta name="description" content="Verde Contracts is the contractor time and expense app built inside a staffing firm: hours and receipts from the field, a weekly packet per contractor, and a Xero draft invoice, every Sunday. Join the waitlist.">
+  <link rel="canonical" href="https://verdecontracts.com/">
+  <meta property="og:title" content="Verde Contracts | Contractor timesheets, receipts and invoicing for staffing firms">
+  <meta property="og:description" content="Hours and receipts logged from any phone, a timesheet and expense packet per contractor every week, and a draft invoice in Xero. Built by a staffing firm. Join the waitlist.">
+  <meta property="og:image" content="{{ url_for('static', filename='marketing/admin-overview-crop.png', _external=True) }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{ url_for('static', filename='vmark.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}?v=1">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="wordmark" href="#top"><img src="{{ url_for('static', filename='vmark.svg') }}" alt="">Verde <span>Contracts</span></a>
+    <nav class="links">
+      <a href="#how">How it works</a>
+      <a href="#inside">A look inside</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn" href="#waitlist">Join the waitlist</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <span class="soon">Coming soon</span>
+      <h1>Contractor hours, receipts and invoices. Done by Sunday night.</h1>
+      <p class="lead">Verde Contracts is the time and expense app we built to run our own contract staffing. Contractors log hours and snap receipts from their phone. Every week it builds a timesheet packet per contractor and drafts the invoice in Xero. We're opening it up to other staffing firms.</p>
+      <div class="hero-cta">
+        <a class="btn big" href="#waitlist">Join the waitlist</a>
+        <a class="link" href="#how">See how it works &rarr;</a>
+      </div>
+      <ul class="ticks">
+        <li>Hours and receipt photos from any phone, no app store install</li>
+        <li>Receipt amounts read automatically, confirmed by the contractor</li>
+        <li>Weekly packet plus a Xero draft invoice, one per contractor</li>
+      </ul>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone"><img src="{{ url_for('static', filename='marketing/contractor-week.png') }}" alt="The contractor's week view on a phone: hours per day, a submitted badge, and buttons to log today or add a receipt"></div>
+    </div>
+  </div>
+</section>
+
+<section class="strip">
+  <div class="wrap strip-in">
+    <div><b>Built inside a staffing firm</b><span>Verde Contracts runs the contract placements at Verde Solutions, a solar and battery storage staffing business. It exists because Friday timesheet chasing was costing us a day a week.</span></div>
+    <div><b>Made for the field</b><span>Big buttons, one screen per day, a camera button for receipts. Contractors on a job site use it between tasks, not at a desk.</span></div>
+    <div><b>Your margin, every week</b><span>Bill rate and pay rate per assignment, so every packet shows what it bills, what it costs and what's left. Contractors never see any of it.</span></div>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="wrap">
+    <span class="eyebrow">How it works</span>
+    <h2>Monday to Sunday, then it does the paperwork.</h2>
+    <div class="steps">
+      <div class="step"><i>1</i><h3>Contractors log as they go</h3><p>Start time, end time, done. Receipts are a photo; the amount is read off the picture and the contractor confirms it. A reminder goes out at 5pm if today is still blank.</p></div>
+      <div class="step"><i>2</i><h3>They press Submit week</h3><p>One tap tells you the week is final. Until you approve it they can still fix a mistake; after that it's locked.</p></div>
+      <div class="step"><i>3</i><h3>Sunday night, packets build</h3><p>For every contractor with hours, a PDF packet: timesheet, expenses, the receipt photos, laid out the way your client's AP team expects. A draft invoice lands in Xero with hours, overtime, per diem and expenses as separate lines.</p></div>
+      <div class="step"><i>4</i><h3>You review and approve</h3><p>Adjust a time, change an expense type, set per diem days, then approve. The PDF and the Xero draft regenerate. Optional client sign-off if a customer wants to approve weeks first.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="inside">
+  <div class="wrap">
+    <span class="eyebrow">A look inside</span>
+    <h2>The admin side, as it runs today.</h2>
+    <p class="sub">What you see on a Thursday afternoon: who's logged what, the margin so far, and any packet waiting for approval.</p>
+    <div class="two">
+      <div><img src="{{ url_for('static', filename='marketing/admin-overview-crop.png') }}" alt="Admin overview: active contractors, hours logged this week, margin this week, and a table of each contractor's days"><h3>The week at a glance</h3><p>Every active contractor, which days they've logged, receipts submitted, and whether they've pressed Submit. Margin for the week updates as hours come in.</p></div>
+      <div><img src="{{ url_for('static', filename='marketing/admin-packet-crop.png') }}" alt="A weekly packet: total hours, expenses, invoice total and approval status"><h3>One packet per contractor per week</h3><p>Hours, expenses, the invoice total and its Xero reference on one screen. Edit anything, approve, and the PDF and draft invoice rebuild.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq">
+  <div class="wrap narrow">
+    <span class="eyebrow">Questions</span>
+    <h2>What people ask.</h2>
+    <details><summary>When can I use it?</summary><p>Verde Contracts runs today for one firm: ours. We're building the version that lets other firms sign up with their own branding, admins and Xero connection. Waitlist members get in first, and the first few help shape it.</p></details>
+    <details><summary>Do my contractors need to install anything?</summary><p>No. It's a web app that works in the phone's browser. They get a link, sign in, and can add it to the home screen like an app if they want.</p></details>
+    <details><summary>Does it work without Xero?</summary><p>Yes. The PDF packets build regardless. Xero adds the draft invoice. Other accounting systems are on the list; tell us yours on the form.</p></details>
+    <details><summary>What does it cost?</summary><p>Not set yet. It'll be a flat monthly fee per firm, not per contractor, so growing your bench doesn't grow your bill. Waitlist members get the launch price.</p></details>
+  </div>
+</section>
+
+<section class="section alt" id="waitlist">
+  <div class="wrap contact-in">
+    <div>
+      <span class="eyebrow">Waitlist</span>
+      <h2>Be first when it opens.</h2>
+      <p class="sub">Tell us a little about your firm. We'll email you when there's something to try, and nothing else.</p>
+      <p class="sub"><b>Matthew Young</b><br>Founder, Verde Contracts<br>Scottsdale, Arizona</p>
+    </div>
+    <form class="card form" method="POST" action="{{ url_for('site.inquiry') }}">
+      <input type="hidden" name="site" value="contracts">
+      <input type="text" name="website_url" class="hp" tabindex="-1" autocomplete="off">
+      <label>Your name</label>
+      <input type="text" name="name" required autocomplete="name">
+      <label>Firm</label>
+      <input type="text" name="company" required autocomplete="organization">
+      <label>Work email</label>
+      <input type="email" name="email" required autocomplete="email">
+      <label>Contractors on assignment right now</label>
+      <select name="size">
+        <option>1 to 5</option><option>6 to 15</option><option>16 to 40</option><option>More than 40</option>
+      </select>
+      <label>How do timesheets work for you today?</label>
+      <textarea name="message" rows="3" placeholder="e.g. Excel sheets emailed on Fridays, invoices typed into Xero by hand"></textarea>
+      <button class="btn big" type="submit">Join the waitlist</button>
+      <small class="fine">One email when it opens. No newsletter.</small>
+    </form>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <span class="wordmark"><img src="{{ url_for('static', filename='vmark.svg') }}" alt="">Verde <span>Contracts</span></span>
+    <span>&copy; {{ year }} Verde Contracts. Scottsdale, Arizona. Part of the Verde group of businesses.</span>
+  </div>
+</footer>
+</body>
+</html>
