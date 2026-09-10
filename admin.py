@@ -255,7 +255,6 @@ def _apply_billing_fields(assignment, form):
         assignment.overtime_rate = _money_or_none(form.get("overtime_rate"))
         assignment.pay_rate = _money_or_none(form.get("pay_rate"))
         assignment.overtime_pay_rate = _money_or_none(form.get("overtime_pay_rate"))
-        assignment.expense_markup = _money_or_none(form.get("expense_markup")) or 0
         assignment.per_diem_bill_rate = _money_or_none(form.get("per_diem_bill_rate"))
         assignment.per_diem_contractor_rate = _money_or_none(form.get("per_diem_contractor_rate"))
         days = (form.get("per_diem_days") or "").strip()
@@ -404,14 +403,6 @@ def packet_detail(packet_id):
             category = request.form.get(f"category_{exp.id}", "").strip()
             if category:
                 exp.category = category
-            billed_raw = request.form.get(f"billed_{exp.id}", "").strip()
-            if billed_raw == "":
-                exp.billed_amount = None  # back to receipt + default markup
-            else:
-                try:
-                    exp.billed_amount = float(billed_raw)
-                except ValueError:
-                    pass
 
         per_diem_raw = request.form.get("per_diem_days", "").strip()
         per_diem_days = None
@@ -587,6 +578,59 @@ def _backfill_packet_money():
         packet.contractor_cost = fig["contractor_cost"]
     if todo:
         db.session.commit()
+
+
+@admin_bp.route("/backup.zip")
+@login_required
+def backup():
+    """One zip with everything: every receipt photo, every packet PDF, and
+    all the data as JSON (no password hashes). Kept outside Render so a
+    lost disk is an inconvenience, not a disaster."""
+    _require_admin()
+    import io
+    import json
+    import zipfile
+    from datetime import datetime as _dt, date as _date
+    from decimal import Decimal
+    from flask import send_file
+    from models import Client as _Client, JobRun as _JobRun
+
+    def plain(obj):
+        out = {}
+        for col in obj.__table__.columns:
+            v = getattr(obj, col.name)
+            if isinstance(v, (_dt, _date)):
+                v = v.isoformat()
+            elif isinstance(v, Decimal):
+                v = float(v)
+            elif hasattr(v, "isoformat"):
+                v = v.isoformat()
+            out[col.name] = v
+        return out
+
+    tables = [User, _Client, Assignment, TimesheetEntry, Expense, WeeklyPacket, WeekSubmission, _JobRun]
+    payload = {"exported_at": _dt.utcnow().isoformat() + "Z", "tables": {}}
+    for model in tables:
+        rows = [plain(r) for r in model.query.all()]
+        if model is User:
+            for r in rows:
+                r.pop("password_hash", None)
+        payload["tables"][model.__table__.name] = rows
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("data.json", json.dumps(payload, indent=1))
+        for folder, prefix in ((current_app.config["UPLOAD_FOLDER"], "receipts"), (current_app.config["PDF_FOLDER"], "packets")):
+            if not os.path.isdir(folder):
+                continue
+            for name in sorted(os.listdir(folder)):
+                path = os.path.join(folder, name)
+                if os.path.isfile(path):
+                    z.write(path, f"{prefix}/{name}")
+    buf.seek(0)
+    stamp = business_today().strftime("%Y-%m-%d")
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name=f"verde-timesheets-backup-{stamp}.zip")
 
 
 @admin_bp.route("/packets/<int:packet_id>/download")
