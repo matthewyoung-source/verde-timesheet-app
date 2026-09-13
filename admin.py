@@ -195,6 +195,89 @@ def contractors():
     return render_template("admin_contractors.html", contractors=all_contractors, clients=clients)
 
 
+@admin_bp.route("/contractors/<int:user_id>")
+@login_required
+def contractor_detail(user_id):
+    """One contractor: this week's hours day by day, what it will bill,
+    what it costs and the margin, per assignment, plus every past packet.
+    ?week=YYYY-MM-DD (a Monday) looks at another week."""
+    _require_admin()
+    c = User.query.get_or_404(user_id)
+    if c.role != "contractor":
+        abort(404)
+    today = business_today()
+    week_arg = request.args.get("week")
+    try:
+        anchor = date.fromisoformat(week_arg) if week_arg else today
+    except ValueError:
+        anchor = today
+    monday, sunday = week_bounds(anchor)
+    days = [monday + timedelta(days=i) for i in range(7)]
+    submitted = {s.assignment_id: s for s in WeekSubmission.query.filter_by(week_start=monday).all()}
+    packets_this_week = {p.assignment_id: p for p in WeeklyPacket.query.filter_by(week_start=monday).all()}
+
+    week_rows = []
+    week_hours = week_billed = week_cost = 0.0
+    uncosted = 0
+    for a in c.assignments.order_by(Assignment.active.desc(), Assignment.start_date.desc()).all():
+        entries = a.timesheet_entries.filter(
+            TimesheetEntry.work_date >= monday, TimesheetEntry.work_date <= sunday
+        ).order_by(TimesheetEntry.work_date).all()
+        expenses = a.expenses.filter(
+            Expense.expense_date >= monday, Expense.expense_date <= sunday
+        ).order_by(Expense.expense_date).all()
+        if not a.active and not entries and not expenses:
+            continue  # ended assignment with nothing this week
+        by_day = {}
+        for e in entries:
+            by_day[e.work_date] = by_day.get(e.work_date, 0.0) + float(e.hours or 0)
+        fig = billing.compute_week(a, entries, expenses)
+        week_hours += fig["total_hours"]
+        week_billed += fig["invoice_total"]
+        if fig["contractor_cost"] is None:
+            uncosted += 1
+        else:
+            week_cost += fig["contractor_cost"]
+        week_rows.append({
+            "assignment": a,
+            "days": [(d, by_day.get(d)) for d in days],
+            "entries": entries,
+            "expenses": expenses,
+            "fig": fig,
+            "submitted": submitted.get(a.id),
+            "packet": packets_this_week.get(a.id),
+            "unconfirmed": sum(1 for x in expenses if not x.is_amount_confirmed),
+        })
+    week_margin = round(week_billed - week_cost, 2) if not uncosted else None
+    week_margin_pct = round(week_margin / week_billed * 100, 1) if week_margin is not None and week_billed else None
+
+    history = (
+        WeeklyPacket.query.join(Assignment, WeeklyPacket.assignment_id == Assignment.id)
+        .filter(Assignment.contractor_id == c.id)
+        .order_by(WeeklyPacket.week_start.desc(), WeeklyPacket.id.desc()).all()
+    )
+    hist_hours = round(sum(float(p.total_hours or 0) for p in history), 2)
+    hist_billed = round(sum(float(p.invoice_total or 0) for p in history), 2)
+    costed = [p for p in history if p.contractor_cost is not None]
+    hist_cost = round(sum(float(p.contractor_cost or 0) for p in costed), 2)
+    hist_margin = round(sum(float(p.invoice_total or 0) - float(p.contractor_cost or 0) for p in costed), 2) if costed else None
+    hist_margin_pct = None
+    if hist_margin is not None:
+        billed_costed = sum(float(p.invoice_total or 0) for p in costed)
+        hist_margin_pct = round(hist_margin / billed_costed * 100, 1) if billed_costed else None
+
+    return render_template(
+        "admin_contractor_detail.html",
+        c=c, today=today, monday=monday, sunday=sunday, days=days,
+        prev_week=monday - timedelta(days=7), next_week=monday + timedelta(days=7),
+        is_current_week=(monday == week_bounds(today)[0]),
+        week_rows=week_rows, week_hours=round(week_hours, 2), week_billed=round(week_billed, 2),
+        week_cost=round(week_cost, 2), week_margin=week_margin, week_margin_pct=week_margin_pct, uncosted=uncosted,
+        history=history, hist_hours=hist_hours, hist_billed=hist_billed, hist_cost=hist_cost,
+        hist_margin=hist_margin, hist_margin_pct=hist_margin_pct, uncosted_history=len(history) - len(costed),
+    )
+
+
 @admin_bp.route("/clients", methods=["GET", "POST"])
 @login_required
 def clients():
