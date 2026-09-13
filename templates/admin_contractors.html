@@ -14,7 +14,7 @@
     <div class="card-head">
       <div style="display:flex; gap:12px; align-items:center;">
         <div class="avatar" style="width:40px;height:40px;font-size:16px;">{{ c.name[:1]|upper }}</div>
-        <div><h3>{{ c.name }}</h3><p class="hint">{{ c.email }}{% if not c.active %} &middot; <span class="pill grey">inactive</span>{% endif %}</p></div>
+        <div><h3><a href="{{ url_for('admin.contractor_detail', user_id=c.id) }}">{{ c.name }}</a> <a class="btn ghost small" style="margin-left:6px;" href="{{ url_for('admin.contractor_detail', user_id=c.id) }}">This week &amp; margin</a></h3><p class="hint">{{ c.email }}{% if not c.active %} &middot; <span class="pill grey">inactive</span>{% endif %}</p></div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <form method="POST" action="{{ url_for('admin.reset_password', user_id=c.id) }}" onsubmit="return confirm('Generate a new temporary password for {{ c.name }}?');">
