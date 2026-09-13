@@ -8,7 +8,7 @@
   <tbody>
   {% for p in rows %}
     <tr>
-      <td><b>{{ p.assignment.contractor.name }}</b></td>
+      <td><b><a href="{{ url_for('admin.contractor_detail', user_id=p.assignment.contractor_id) }}">{{ p.assignment.contractor.name }}</a></b></td>
       <td>{{ p.assignment.client.name }}</td>
       <td>{{ p.week_start.strftime('%b %-d') }}</td>
       <td class="num">{{ p.total_hours|hrs }}</td>
