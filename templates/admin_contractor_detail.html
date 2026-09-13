@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{{ c.name }} - Verde Solutions{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('admin.contractors') }}">&larr; Contractors</a>
+<div class="top">
+  <div style="display:flex; gap:14px; align-items:center;">
+    <div class="avatar" style="width:48px;height:48px;font-size:20px;">{{ c.name[:1]|upper }}</div>
+    <div>
+      <h1>{{ c.name }}</h1>
+      <div class="sub">{{ c.email }}{% if not c.active %} &middot; <span class="pill grey">inactive</span>{% endif %}
+        {% for a in c.assignments if a.active %} &middot; {{ a.client.name }}{% if a.role_title %} ({{ a.role_title }}){% endif %}{% endfor %}</div>
+    </div>
+  </div>
+  <div class="tools">
+    <a class="btn ghost small" href="{{ url_for('admin.contractor_detail', user_id=c.id, week=prev_week.isoformat()) }}">&larr; Previous week</a>
+    {% if not is_current_week %}<a class="btn ghost small" href="{{ url_for('admin.contractor_detail', user_id=c.id) }}">This week</a>
+    <a class="btn ghost small" href="{{ url_for('admin.contractor_detail', user_id=c.id, week=next_week.isoformat()) }}">Next week &rarr;</a>{% endif %}
+    <a class="btn secondary small" href="{{ url_for('admin.packets_list', contractor=c.id) }}">All packets</a>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi hours"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+    <div class="lab">Hours, week of {{ monday.strftime('%b %-d') }}</div><div class="val">{{ week_hours|hrs }}</div>
+    <div class="rate">{% set ot = week_rows|map(attribute='fig.overtime_hours')|sum %}{% if ot %}{{ ot|hrs }} overtime{% else %}no overtime{% endif %}</div></div>
+  <div class="kpi people"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+    <div class="lab">Bills this week</div><div class="val">{{ week_billed|money }}</div>
+    <div class="rate">hours, per diem and receipts</div></div>
+  <div class="kpi money"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></div>
+    <div class="lab">Margin this week</div>
+    <div class="val">{% if week_margin is not none %}{{ week_margin|money }}{% else %}&ndash;{% endif %}</div>
+    <div class="rate">{% if week_margin is not none %}{{ week_margin_pct or 0 }}% &middot; costs {{ week_cost|money }}{% else %}set a pay rate to see margin{% endif %}</div></div>
+  <div class="kpi attention"><div class="ic"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+    <div class="lab">All time</div><div class="val">{% if hist_margin is not none %}{{ hist_margin|money }}{% else %}{{ hist_billed|money }}{% endif %}</div>
+    <div class="rate">{% if hist_margin is not none %}{{ hist_margin_pct or 0 }}% margin on {{ hist_billed|money }} billed{% else %}billed across {{ history|length }} packet{{ '' if history|length == 1 else 's' }}{% endif %} &middot; {{ hist_hours|hrs }} hrs</div></div>
+</div>
+
+{% if not week_rows %}
+  <div class="card"><div class="empty">No active assignment and nothing logged for the week of {{ monday.strftime('%b %-d') }}.</div></div>
+{% endif %}
+
+{% for r in week_rows %}
+{% set a = r.assignment %}{% set f = r.fig %}
+<div class="card">
+  <div class="card-head">
+    <div>
+      <h3>{{ a.client.name }}{% if a.role_title %} <span class="muted">&middot; {{ a.role_title }}</span>{% endif %}</h3>
+      <p class="hint">Week of {{ monday.strftime('%b %-d') }} to {{ sunday.strftime('%b %-d, %Y') }} &middot; bill {{ a.billing_rate|money }}/hr{% if a.pay_rate is not none %} &middot; pay {{ a.pay_rate|money }}/hr{% endif %}{% if not a.active %} &middot; <span class="pill grey">assignment ended</span>{% endif %}</p>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      {% if r.submitted %}<span class="pill green">Submitted {{ r.submitted.submitted_at|local_time('%a %-I:%M %p') }}</span>
+      {% elif f.total_hours %}<span class="pill brand">Logging</span>
+      {% else %}<span class="pill grey">Nothing logged</span>{% endif %}
+      {% if r.packet %}<a class="btn small" href="{{ url_for('admin.packet_detail', packet_id=r.packet.id) }}">Open packet</a>{% endif %}
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Day</th><th class="num">Hours</th><th>Notes</th></tr></thead>
+        <tbody>
+        {% for d, h in r.days %}
+          <tr{% if d == today %} style="background:var(--brand-soft);"{% endif %}>
+            <td>{{ d.strftime('%a %b %-d') }}</td>
+            <td class="num">{% if h %}<b>{{ h|hrs }}</b>{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+            <td class="muted small">{% for e in r.entries if e.work_date == d and e.notes %}{{ e.notes }}{{ '; ' if not loop.last }}{% endfor %}</td>
+          </tr>
+        {% endfor %}
+          <tr><td><b>Total</b></td><td class="num"><b>{{ f.total_hours|hrs }}</b></td><td class="muted small">{{ f.regular_hours|hrs }} regular{% if f.overtime_hours %}, {{ f.overtime_hours|hrs }} overtime{% endif %}</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Money this week</th><th class="num">Bills</th><th class="num">Costs</th></tr></thead>
+        <tbody>
+          <tr><td>Regular hours &middot; {{ f.regular_hours|hrs }} at {{ f.billing_rate|money }}</td><td class="num">{{ (f.regular_hours * f.billing_rate)|money }}</td><td class="num">{% if f.pay_regular is not none %}{{ f.pay_regular|money }}{% else %}&ndash;{% endif %}</td></tr>
+          {% if f.overtime_hours %}<tr><td>Overtime &middot; {{ f.overtime_hours|hrs }} at {{ f.overtime_rate|money }}</td><td class="num">{{ (f.overtime_hours * f.overtime_rate)|money }}</td><td class="num">{% if f.pay_overtime is not none %}{{ f.pay_overtime|money }}{% else %}&ndash;{% endif %}</td></tr>{% endif %}
+          {% if f.per_diem_bill_rate and f.per_diem_days %}<tr><td>Per diem &middot; {{ f.per_diem_days }} days</td><td class="num">{{ (f.per_diem_bill_rate * f.per_diem_days)|money }}</td><td class="num">{{ f.per_diem_contractor_total|money }}</td></tr>{% endif %}
+          <tr><td>Receipts &middot; {{ r.expenses|length }}{% if r.unconfirmed %} <span class="pill warning">{{ r.unconfirmed }} to confirm</span>{% endif %}</td><td class="num">{{ f.billed_expenses|money }}</td><td class="num">{{ f.total_expenses|money }}</td></tr>
+          <tr style="border-top:2px solid var(--brand-deep);"><td><b>Total</b></td><td class="num"><b>{{ f.invoice_total|money }}</b></td><td class="num"><b>{% if f.contractor_cost is not none %}{{ f.contractor_cost|money }}{% else %}&ndash;{% endif %}</b></td></tr>
+          <tr><td><b style="color:var(--brand);">Margin</b></td><td class="num" colspan="2"><b style="color:var(--brand);">{% if f.margin is not none %}{{ f.margin|money }} ({{ f.margin_pct or 0 }}%){% else %}no pay rate set{% endif %}</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      {% if f.contractor_cost is none %}<p class="note">Set a pay rate on the <a href="{{ url_for('admin.contractors') }}">Contractors</a> page to see costs and margin.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<div class="card">
+  <div class="card-head">
+    <div><h3>Every week on record</h3><p class="hint">{{ history|length }} packet{{ '' if history|length == 1 else 's' }} &middot; {{ hist_hours|hrs }} hours &middot; {{ hist_billed|money }} billed{% if hist_margin is not none %} &middot; {{ hist_margin|money }} margin{% endif %}{% if uncosted_history %} &middot; {{ uncosted_history }} without a pay rate{% endif %}</p></div>
+  </div>
+  {% if not history %}
+    <div class="empty">No packets yet. The first one is built on Sunday night, or from the Contractors page.</div>
+  {% else %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Week</th><th>Client</th><th class="num">Hours</th><th class="num">Billed</th><th class="num">Cost</th><th class="num">Margin</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for p in history %}
+      <tr>
+        <td><a href="{{ url_for('admin.contractor_detail', user_id=c.id, week=p.week_start.isoformat()) }}">{{ p.week_start.strftime('%b %-d') }} to {{ p.week_end.strftime('%b %-d, %Y') }}</a></td>
+        <td>{{ p.assignment.client.name }}</td>
+        <td class="num">{{ p.total_hours|hrs }}{% if p.overtime_hours %} <span class="muted small">({{ p.overtime_hours|hrs }} OT)</span>{% endif %}</td>
+        <td class="num">{{ p.invoice_total|money }}</td>
+        <td class="num">{% if p.contractor_cost is not none %}{{ p.contractor_cost|money }}{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+        <td class="num">{% if p.contractor_cost is not none %}<b style="color:var(--brand);">{{ ((p.invoice_total or 0) - p.contractor_cost)|money }}</b>{% else %}<span class="muted">&ndash;</span>{% endif %}</td>
+        <td>{% include "_packet_pills.html" %} {% include "_xero_pill.html" %}</td>
+        <td class="num"><a class="btn ghost small" href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
