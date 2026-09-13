@@ -60,7 +60,7 @@
     <tbody>
     {% for r in week_rows %}
       <tr>
-        <td><b>{{ r.assignment.contractor.name }}</b>{% if r.assignment.role_title %}<div class="muted small">{{ r.assignment.role_title }}</div>{% endif %}</td>
+        <td><b><a href="{{ url_for('admin.contractor_detail', user_id=r.assignment.contractor_id) }}">{{ r.assignment.contractor.name }}</a></b>{% if r.assignment.role_title %}<div class="muted small">{{ r.assignment.role_title }}</div>{% endif %}</td>
         <td>{{ r.assignment.client.name }}</td>
         <td>
           <span class="mini-days" title="{% for d, h in r.days %}{{ d.strftime('%a') }} {{ h|hrs if h else '-' }}{{ ', ' if not loop.last }}{% endfor %}">
@@ -96,7 +96,7 @@
         <a class="li" href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">
           <div class="li-ic amber">{{ p.week_start.strftime('%-d') }}</div>
           <div class="li-body">
-            <div class="li-title">{{ p.assignment.contractor.name }} &middot; {{ p.assignment.client.name }}</div>
+            <div class="li-title"><a href="{{ url_for('admin.contractor_detail', user_id=p.assignment.contractor_id) }}">{{ p.assignment.contractor.name }}</a> &middot; {{ p.assignment.client.name }}</div>
             <div class="li-sub">Week of {{ p.week_start.strftime('%b %-d') }} &middot; {{ p.total_hours|hrs }} hrs{% if p.total_expenses %} &middot; {{ p.total_expenses|money }} expenses{% endif %}</div>
           </div>
           <div class="li-right">{% set p = p %}{% include "_xero_pill.html" %}</div>
