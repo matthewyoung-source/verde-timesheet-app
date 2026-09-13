@@ -47,7 +47,7 @@
     {% for p in pending_packets %}
       <a class="li" href="{{ url_for('admin.packet_detail', packet_id=p.id) }}">
         <div class="li-ic amber">{{ p.week_start.strftime('%-d') }}</div>
-        <div class="li-body"><div class="li-title">{{ p.assignment.contractor.name }} &middot; {{ p.assignment.client.name }}</div><div class="li-sub">Week of {{ p.week_start.strftime('%b %-d') }} &middot; {{ p.total_hours|hrs }} hrs</div></div>
+        <div class="li-body"><div class="li-title"><a href="{{ url_for('admin.contractor_detail', user_id=p.assignment.contractor_id) }}">{{ p.assignment.contractor.name }}</a> &middot; {{ p.assignment.client.name }}</div><div class="li-sub">Week of {{ p.week_start.strftime('%b %-d') }} &middot; {{ p.total_hours|hrs }} hrs</div></div>
         <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </a>
     {% endfor %}
