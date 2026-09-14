@@ -567,8 +567,14 @@ def packet_detail(packet_id):
         if action == "approve":
             packet.approval_status = "approved"
             packet.approved_at = datetime.utcnow()
+            xero_result = packets.approve_in_xero(packet)
             db.session.commit()
-            flash("Packet approved and locked -- the contractor can no longer edit this week.", "success")
+            if xero_result == "approved":
+                flash("Packet approved and locked, and the invoice is approved in Xero.", "success")
+            elif xero_result == "not_connected":
+                flash("Packet approved and locked. No Xero invoice to approve for this week.", "warning")
+            else:
+                flash("Packet approved and locked, but Xero did not approve the invoice. Use Approve invoice in Xero to retry.", "warning")
         else:
             db.session.commit()
             flash("Packet updated and PDF regenerated.", "success")
@@ -596,6 +602,27 @@ def _parse_time(raw):
         return datetime.strptime(raw, "%H:%M").time()
     except ValueError:
         return None
+
+
+@admin_bp.route("/packets/<int:packet_id>/approve-xero", methods=["POST"])
+@login_required
+def approve_packet_in_xero(packet_id):
+    """Approve the Xero invoice for a packet that was approved in the app while
+    its invoice was still a draft (or when the first attempt failed)."""
+    _require_admin()
+    packet = WeeklyPacket.query.get_or_404(packet_id)
+    if packet.approval_status != "approved":
+        flash("Approve the packet first; that approves the invoice in Xero as well.", "warning")
+        return redirect(url_for("admin.packet_detail", packet_id=packet.id))
+    result = packets.approve_in_xero(packet)
+    db.session.commit()
+    if result == "approved":
+        flash("Invoice approved in Xero.", "success")
+    elif result == "not_connected":
+        flash("No Xero invoice is linked to this packet.", "warning")
+    else:
+        flash("Xero did not approve the invoice. Check it in Xero and try again.", "danger")
+    return redirect(url_for("admin.packet_detail", packet_id=packet.id))
 
 
 @admin_bp.route("/packets/<int:packet_id>/regenerate", methods=["POST"])
