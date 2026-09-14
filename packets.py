@@ -128,7 +128,8 @@ def regenerate_packet(packet, entries, expenses, per_diem_days=None):
             reference=reference,
         )
         if status == "updated":
-            packet.xero_invoice_status = "draft_created"
+            if packet.xero_invoice_status != "approved":
+                packet.xero_invoice_status = "draft_created"
         elif status == "failed":
             packet.xero_invoice_status = "failed"
     elif packet.xero_invoice_status in (None, "not_connected", "failed"):
@@ -146,6 +147,21 @@ def regenerate_packet(packet, entries, expenses, per_diem_days=None):
         packet.xero_invoice_id = invoice_id
         packet.xero_invoice_status = invoice_status
     return figures
+
+
+def approve_in_xero(packet):
+    """Approving a packet approves its invoice in Xero too. Returns the Xero
+    result ('approved', 'not_connected', 'failed') and records it on the packet."""
+    if not packet.xero_invoice_id:
+        return "not_connected"
+    result = xero_integration.approve_invoice(
+        current_app.config["XERO_CLIENT_ID"],
+        current_app.config["XERO_CLIENT_SECRET"],
+        packet.xero_invoice_id,
+    )
+    if result == "approved":
+        packet.xero_invoice_status = "approved"
+    return result
 
 
 def full_packet_pdf(packet):
