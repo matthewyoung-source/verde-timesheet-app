@@ -202,3 +202,7 @@ def register_jobs(app, scheduler):
         id="daily_reminder_job",
         replace_existing=True,
     )
+
+    # Morning brief email to the owner (see brief.py).
+    from brief import register_brief
+    register_brief(app, scheduler)
