@@ -64,6 +64,8 @@ class Config:
 
     # Used to build absolute links in emails (password reset, reminders).
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+    # Shared secret the Verde CRM sends (X-Api-Key) when it pushes a placement. Blank = API off.
+    PLACEMENT_API_KEY = os.environ.get("PLACEMENT_API_KEY", "")
 
     # Reminder job: what time each day to nudge contractors who haven't
     # logged anything yet. Pacific time, matches how Matthew runs the business.
