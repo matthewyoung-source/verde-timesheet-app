@@ -133,6 +133,7 @@ def compute_week(assignment, entries, expenses, per_diem_days=None):
     pay_rate = float(pay_rate) if pay_rate is not None else None
     overtime_pay_rate = assignment.effective_overtime_pay_rate() if hasattr(assignment, "effective_overtime_pay_rate") else None
     per_diem_contractor_total = round(per_diem_contractor_rate * per_diem_days, 2)
+    per_diem_bill_total = round(per_diem_bill_rate * per_diem_days, 2)
     if pay_rate is not None:
         pay_regular = round(regular_hours * pay_rate, 2)
         pay_overtime = round(overtime_hours * (overtime_pay_rate or 0), 2)
@@ -152,6 +153,7 @@ def compute_week(assignment, entries, expenses, per_diem_days=None):
         "per_diem_bill_rate": per_diem_bill_rate,
         "per_diem_contractor_rate": per_diem_contractor_rate,
         "per_diem_contractor_total": per_diem_contractor_total,
+        "per_diem_bill_total": per_diem_bill_total,
         "expense_groups": groups,
         "total_expenses": total_expenses,
         "billed_expenses": billed_expenses,
