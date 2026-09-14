@@ -254,7 +254,9 @@ def build_weekly_pdf(output_path, assignment, week_start, week_end,
     el.append(PageBreak())
     el.append(_section_heading("EXPENSES"))
     rows = [["Date", "Description", "Amount", "Receipt?"]]
-    pd_rate = figures["per_diem_contractor_rate"]
+    # The packet goes to the client with the invoice, so per diem is shown at the
+    # rate billed to the client (what the contractor is paid stays admin-only).
+    pd_rate = figures["per_diem_bill_rate"]
     pd_days = figures["per_diem_days"]
     if pd_rate > 0 and pd_days > 0:
         for i, day in enumerate(billing.week_days(week_start)):
@@ -279,9 +281,9 @@ def build_weekly_pdf(output_path, assignment, week_start, week_end,
     el += [et, Spacer(1, 12)]
     el.append(_totals_block([
         (f"Total Per Diem  ({pd_days} days @ {_fmt_money(pd_rate)})" if pd_rate else "Total Per Diem",
-         _fmt_money(figures["per_diem_contractor_total"]), False),
+         _fmt_money(figures["per_diem_bill_total"]), False),
         ("Items to Expense", _fmt_money(figures["total_expenses"]), False),
-        ("TOTAL EXPENSES", _fmt_money(figures["per_diem_contractor_total"] + figures["total_expenses"]), True),
+        ("TOTAL EXPENSES", _fmt_money(figures["per_diem_bill_total"] + figures["total_expenses"]), True),
     ]))
 
     el.append(Spacer(1, 40))
