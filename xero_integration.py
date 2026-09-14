@@ -204,10 +204,10 @@ def create_draft_invoice(client_id, client_secret, client_name, client_xero_cont
 
 
 def update_draft_invoice(client_id, client_secret, invoice_id, lines, reference=None):
-    """Replaces the lines on an existing DRAFT invoice -- used when an admin
-    edits a packet's hours/amounts at approval time, after it has synced.
-    If the invoice has since been approved/paid in Xero itself, this call will
-    simply fail and the admin keeps their in-app numbers as the source of truth.
+    """Replaces the lines on an existing invoice -- used when an admin edits a
+    packet's hours/amounts after it has synced. Xero accepts this for DRAFT and
+    for AUTHORISED invoices with no payment against them; once a payment is
+    recorded the call simply fails and the in-app numbers stand.
     Returns 'updated', 'not_connected', or 'failed'."""
 
     token = XeroToken.query.first()
@@ -231,6 +231,35 @@ def update_draft_invoice(client_id, client_secret, invoice_id, lines, reference=
         resp.raise_for_status()
         return "updated"
 
+    except Exception:
+        return "failed"
+
+
+def approve_invoice(client_id, client_secret, invoice_id):
+    """Moves a DRAFT invoice to AUTHORISED (Awaiting payment) in Xero, so the
+    invoice Matthew downloads with the packet is the real one, not a draft.
+    Idempotent: an invoice that is already authorised or paid is left alone.
+    Returns 'approved', 'not_connected', or 'failed'."""
+    token = XeroToken.query.first()
+    if not token or not client_id or not client_secret or not invoice_id:
+        return "not_connected"
+    try:
+        token = _refresh_if_needed(token, client_id, client_secret)
+        headers = _headers(token)
+        resp = requests.get(f"{INVOICES_URL}/{invoice_id}", headers=headers, timeout=20)
+        resp.raise_for_status()
+        status = (resp.json().get("Invoices") or [{}])[0].get("Status", "")
+        if status in ("AUTHORISED", "PAID"):
+            return "approved"
+        if status not in ("DRAFT", "SUBMITTED"):
+            return "failed"  # deleted or voided in Xero
+        resp = requests.post(
+            f"{INVOICES_URL}/{invoice_id}",
+            json={"Invoices": [{"InvoiceID": invoice_id, "Status": "AUTHORISED"}]},
+            headers=headers, timeout=20,
+        )
+        resp.raise_for_status()
+        return "approved"
     except Exception:
         return "failed"
 
