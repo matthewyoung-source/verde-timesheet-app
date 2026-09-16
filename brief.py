@@ -338,8 +338,10 @@ def _send(app, to_address, subject, body_text, body_html=None):
     msg["Subject"] = subject
     msg["From"] = app.config["MAIL_FROM"]
     msg["To"] = to_address
-    msg.set_content(body_text)
-    msg.add_alternative(body_html, subtype="html")
+    # Styled version only. The plain text is still built and is used as the
+    # fallback above if the HTML render fails, because no brief at all would be
+    # worse than a plain one.
+    msg.set_content(body_html, subtype="html")
     try:
         with smtplib.SMTP(app.config["SMTP_HOST"], app.config["SMTP_PORT"], timeout=20) as server:
             if app.config.get("SMTP_USE_TLS", True):
