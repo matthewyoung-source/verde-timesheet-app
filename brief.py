@@ -332,6 +332,11 @@ def _send(app, to_address, subject, body_text, body_html=None):
     configured here, so behaviour is unchanged when email is off."""
     import smtplib
     from email.message import EmailMessage
+    import chase_relay
+    # From Chase's mailbox when the relay is configured; the SMTP route below
+    # stays as the fallback so the brief always arrives.
+    if chase_relay.send(subject, body_html, body_text):
+        return True
     if not body_html or not app.config.get("SMTP_HOST"):
         return notifications.send_email(app, to_address, subject, body_text)
     msg = EmailMessage()
