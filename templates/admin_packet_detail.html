@@ -31,26 +31,34 @@
   <div class="grid2">
     <div class="card">
       <div class="card-head"><div><h3>Hours</h3><p class="hint">Times win over the hours figure{% if assignment.daily_break_hours %} (less the {{ assignment.daily_break_hours|hrs }} hr break){% endif %}.</p></div></div>
-      {% if not entries %}
-        <div class="empty">No hours logged this week.</div>
-      {% else %}
       <div class="table-wrap">
       <table>
-        <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Hours</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Hours</th><th>Notes (print on the PDF)</th></tr></thead>
         <tbody>
-        {% for e in entries %}
+        {% set by_date = {} %}{% for e in entries %}{% set _ = by_date.update({e.work_date: e}) %}{% endfor %}
+        {% for d in week_days %}{% set e = by_date.get(d) %}
+          {% if e %}
           <tr>
-            <td><b>{{ e.work_date.strftime('%a') }}</b> <span class="muted">{{ e.work_date.strftime('%-m/%-d') }}</span></td>
+            <td><b>{{ d.strftime('%a') }}</b> <span class="muted">{{ d.strftime('%-m/%-d') }}</span></td>
             <td><input type="time" name="start_{{ e.id }}" value="{{ e.start_time.strftime('%H:%M') if e.start_time else '' }}" style="width:110px;"></td>
             <td><input type="time" name="end_{{ e.id }}" value="{{ e.end_time.strftime('%H:%M') if e.end_time else '' }}" style="width:110px;"></td>
             <td><input type="number" step="0.25" min="0" max="24" name="hours_{{ e.id }}" value="{{ e.hours|hrs }}" style="width:80px;"></td>
-            <td class="muted small">{{ e.notes or '' }}</td>
+            <td><input type="text" maxlength="300" name="notes_{{ e.id }}" value="{{ e.notes or '' }}" placeholder="Add a note" style="min-width:160px;"></td>
           </tr>
+          {% else %}
+          <tr class="muted">
+            <td><b>{{ d.strftime('%a') }}</b> <span class="muted">{{ d.strftime('%-m/%-d') }}</span></td>
+            <td><input type="time" name="new_start_{{ d.isoformat() }}" value="" style="width:110px;"></td>
+            <td><input type="time" name="new_end_{{ d.isoformat() }}" value="" style="width:110px;"></td>
+            <td><input type="number" step="0.25" min="0" max="24" name="new_hours_{{ d.isoformat() }}" value="" placeholder="0" style="width:80px;"></td>
+            <td><input type="text" maxlength="300" name="new_notes_{{ d.isoformat() }}" value="" placeholder="Not logged" style="min-width:160px;"></td>
+          </tr>
+          {% endif %}
         {% endfor %}
         </tbody>
       </table>
       </div>
-      {% endif %}
+      <p class="hint" style="margin-top:8px;">Fill in a blank day to add it. Overtime is worked out on the week's total over 40.</p>
       <p class="note" style="margin-top:12px;"><b>Regular</b> {{ figures.regular_hours|hrs }} @ {{ figures.billing_rate|money }} &middot; <b>Overtime</b> {{ figures.overtime_hours|hrs }} @ {{ figures.overtime_rate|money }}{% if figures.pay_rate is not none %}<br><span class="muted">Paid at {{ figures.pay_rate|money }}/hr{% if figures.overtime_hours %}, overtime {{ figures.overtime_pay_rate|money }}/hr{% endif %}</span>{% endif %}</p>
     </div>
 
