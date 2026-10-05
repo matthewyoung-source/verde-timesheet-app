@@ -21,7 +21,8 @@ except Exception:
     pass
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+from xml.sax.saxutils import escape
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
@@ -63,6 +64,7 @@ _caption = ParagraphStyle("caption", parent=_base, fontName="Helvetica-Bold", fo
 _sig = ParagraphStyle("sig", parent=_base, fontName="Helvetica-Bold", fontSize=8, textColor=GREEN)
 _muted = ParagraphStyle("muted", parent=_base, fontSize=8, textColor=MUTE)
 _right = ParagraphStyle("right", parent=_base, alignment=TA_RIGHT)
+_note = ParagraphStyle("note", parent=_base, fontSize=8.5, leading=10, alignment=TA_CENTER)
 
 
 def _fmt_time(t):
@@ -231,15 +233,16 @@ def build_weekly_pdf(output_path, assignment, week_start, week_end,
     # ---------- time worked ----------
     el.append(_section_heading("TIME WORKED"))
     by_date = {e.work_date: e for e in timesheet_entries}
-    rows = [["Date", "Start Time", "End Time", "Total Hours", "Overtime?"]]
+    rows = [["Date", "Start Time", "End Time", "Total Hours", "Notes"]]
     for day in billing.week_days(week_start):
         e = by_date.get(day)
+        note = (getattr(e, "notes", None) or "") if e else ""
         rows.append([
             day.strftime("%a  %m/%d/%Y"),
             _fmt_time(e.start_time) if e else "",
             _fmt_time(e.end_time) if e else "",
             f"{float(e.hours):.2f}" if e else "",
-            "",
+            Paragraph(escape(note), _note) if note else "",
         ])
     tt = Table(rows, colWidths=[1.55 * inch, 1.3 * inch, 1.3 * inch, 1.3 * inch, 1.65 * inch])
     tt.setStyle(_grid_style(len(rows), {0: "CENTER", 1: "CENTER", 2: "CENTER", 3: "CENTER"}))

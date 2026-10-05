@@ -543,6 +543,41 @@ def packet_detail(packet_id):
                     entry.hours = float(hours_raw)
                 except ValueError:
                     pass
+            if f"notes_{entry.id}" in request.form:
+                entry.notes = request.form.get(f"notes_{entry.id}", "").strip()[:300] or None
+
+        # Days with nothing logged yet (a weekend demob, a day the contractor
+        # forgot): the admin can add them here, with a note for the PDF.
+        logged_days = {e.work_date for e in entries}
+        added = []
+        for day in billing.week_days(packet.week_start):
+            if day in logged_days:
+                continue
+            key = day.isoformat()
+            start_t = _parse_time(request.form.get(f"new_start_{key}", "").strip())
+            end_t = _parse_time(request.form.get(f"new_end_{key}", "").strip())
+            hours_raw = request.form.get(f"new_hours_{key}", "").strip()
+            notes = request.form.get(f"new_notes_{key}", "").strip()[:300] or None
+            hours = None
+            if start_t and end_t:
+                hours = billing.hours_from_times(start_t, end_t, assignment.daily_break_hours)
+            elif hours_raw:
+                try:
+                    hours = float(hours_raw)
+                except ValueError:
+                    hours = None
+                start_t = end_t = None
+            if hours is None or hours <= 0 or hours > 24:
+                continue
+            new_entry = TimesheetEntry(
+                assignment_id=assignment.id, work_date=day, hours=hours,
+                start_time=start_t, end_time=end_t, notes=notes,
+            )
+            db.session.add(new_entry)
+            added.append(new_entry)
+        if added:
+            entries = sorted(entries + added, key=lambda e: e.work_date)
+
         for exp in packet_expenses:
             amount_raw = request.form.get(f"amount_{exp.id}", "").strip()
             if amount_raw:
@@ -591,6 +626,7 @@ def packet_detail(packet_id):
         expenses=packet_expenses,
         figures=figures,
         categories=list(billing.EXPENSE_CATEGORIES.keys()),
+        week_days=billing.week_days(packet.week_start),
     )
 
 
