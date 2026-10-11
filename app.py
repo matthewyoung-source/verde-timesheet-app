@@ -39,7 +39,7 @@ def create_app(config_class=Config):
 
     @app.errorhandler(413)
     def too_big(err):
-        flash("That photo is too large (16 MB max). Try again with a smaller one.", "error")
+        flash("That photo is too large (30 MB max). Try again with a smaller one.", "error")
         return redirect(request.referrer or url_for("auth.login"))
 
     @login_manager.user_loader

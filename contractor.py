@@ -38,6 +38,21 @@ contractor_bp = Blueprint("contractor", __name__, url_prefix="/my")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "heic", "heif", "webp"}
 MAX_PHOTO_EDGE = 2000  # px: plenty for a legible receipt, keeps PDFs small
+
+# 200 MP phone cameras exist; we never decode them at full size (see
+# _normalise_photo), so lift Pillow's "decompression bomb" ceiling.
+Image.MAX_IMAGE_PIXELS = 260_000_000
+
+# EXIF orientation flag -> the transpose that makes the photo upright.
+_ORIENTATION_FIX = {
+    2: Image.Transpose.FLIP_LEFT_RIGHT,
+    3: Image.Transpose.ROTATE_180,
+    4: Image.Transpose.FLIP_TOP_BOTTOM,
+    5: Image.Transpose.TRANSPOSE,
+    6: Image.Transpose.ROTATE_270,
+    7: Image.Transpose.TRANSVERSE,
+    8: Image.Transpose.ROTATE_90,
+}
 HISTORY_WEEKS = 12
 
 
@@ -53,12 +68,27 @@ def _normalise_photo(raw_path, jpeg_path):
     """Turns whatever the phone sent (HEIC, huge PNG, sideways JPEG) into an
     upright, reasonably sized JPEG that browsers, OCR and the PDF can all
     read. Returns True on success; on failure the original is kept as is."""
+    # Memory matters here: the Render Starter box has 512 MB, and a modern
+    # phone photo (24 to 200 megapixels) decoded at full size, then copied
+    # to rotate it, used most of that and got the worker killed mid-upload.
+    # So: read the rotation flag first, ask the JPEG decoder for a reduced
+    # size straight away (draft), shrink, and only then rotate the small copy.
     try:
         with Image.open(raw_path) as im:
-            im = ImageOps.exif_transpose(im)
+            try:
+                orientation = im.getexif().get(0x0112, 1)
+            except Exception:
+                orientation = 1
+            try:
+                im.draft("RGB", (MAX_PHOTO_EDGE, MAX_PHOTO_EDGE))  # JPEG only; no-op otherwise
+            except Exception:
+                pass
+            im.thumbnail((MAX_PHOTO_EDGE, MAX_PHOTO_EDGE))
             if im.mode not in ("RGB", "L"):
                 im = im.convert("RGB")
-            im.thumbnail((MAX_PHOTO_EDGE, MAX_PHOTO_EDGE))
+            method = _ORIENTATION_FIX.get(orientation)
+            if method is not None:
+                im = im.transpose(method)
             im.save(jpeg_path, "JPEG", quality=88, optimize=True)
         if raw_path != jpeg_path:
             os.remove(raw_path)

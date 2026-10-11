@@ -42,7 +42,7 @@ class Config:
     # Locally they just default to folders next to the app.
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
     PDF_FOLDER = os.environ.get("PDF_FOLDER", os.path.join(BASE_DIR, "generated_pdfs"))
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
+    MAX_CONTENT_LENGTH = 30 * 1024 * 1024  # 30MB max upload (phones shrink photos first anyway)
 
     COMPANY_NAME = os.environ.get("COMPANY_NAME", "Verde Solutions")
 
