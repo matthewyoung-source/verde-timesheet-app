@@ -14,7 +14,7 @@
 <form method="POST" enctype="multipart/form-data" class="card" id="receipt-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label class="upload" id="upload-box">
-    <input type="file" name="photo" id="photo" accept="image/*,.heic,.heif" capture="environment" required>
+    <input type="file" name="photo" id="photo" accept="image/*,.heic,.heif" required>
     <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
     <b>Take a photo of the receipt</b>
     <small>or choose one from your photos</small>
@@ -105,8 +105,42 @@
       box.appendChild(img);
     }
   });
-  document.getElementById('receipt-form').addEventListener('submit', function () {
+  // Shrink the photo on the phone before sending it. A modern phone photo is
+  // 3 to 15 MB, which is slow or times out on a weak site signal; a 2000 px
+  // JPEG is a few hundred KB and still perfectly legible. If the browser
+  // can't decode the file (e.g. HEIC outside Safari) the original is sent
+  // and the server shrinks it instead.
+  var form = document.getElementById('receipt-form');
+  var shrunk = false;
+  function shrink(file) {
+    return new Promise(function (resolve) {
+      if (!window.createImageBitmap || !window.DataTransfer || !file || !file.type ||
+          file.type.indexOf('image/') !== 0 || file.size < 1500000) { return resolve(null); }
+      createImageBitmap(file).then(function (bmp) {
+        var max = 2000, s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+        c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+        c.toBlob(function (blob) {
+          if (!blob || blob.size >= file.size) return resolve(null);
+          resolve(new File([blob], 'receipt.jpg', { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.88);
+      }).catch(function () { resolve(null); });
+    });
+  }
+  form.addEventListener('submit', function (ev) {
+    if (shrunk) return;  // second pass: let the browser send it
+    ev.preventDefault();
     btn.disabled = true; btn.textContent = 'Uploading and reading the amount...';
+    var done = function () { shrunk = true; form.submit(); };
+    var timer = setTimeout(done, 8000);  // never leave them stuck
+    shrink(input.files && input.files[0]).then(function (small) {
+      clearTimeout(timer);
+      if (small) {
+        try { var dt = new DataTransfer(); dt.items.add(small); input.files = dt.files; } catch (e) {}
+      }
+      if (!shrunk) done();
+    });
   });
 })();
 </script>
