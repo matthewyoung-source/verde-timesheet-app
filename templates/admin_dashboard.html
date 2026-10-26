@@ -15,6 +15,11 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn secondary small" type="submit">Build this week's packets now</button>
     </form>
+    <form method="POST" action="{{ url_for('admin.run_packets_now') }}" style="display:inline;" title="Builds any missing packets for an earlier week. Weeks that already have a packet are left alone.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="date" name="week_of" required style="font-size:12px; padding:3px 6px;">
+      <button class="btn secondary small" type="submit">Build missing packets for that week</button>
+    </form>
     {% if xero_connected %}<span class="pill green">Xero connected</span>{% else %}<a class="btn small" href="{{ url_for('admin.xero_connect') }}">Connect Xero</a>{% endif %}
   </div>
 </div>
