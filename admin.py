@@ -536,10 +536,18 @@ def packet_detail(packet_id):
     if request.method == "POST":
         action = request.form.get("action")
 
+        removed = []
         for entry in entries:
             start_raw = request.form.get(f"start_{entry.id}", "").strip()
             end_raw = request.form.get(f"end_{entry.id}", "").strip()
             hours_raw = request.form.get(f"hours_{entry.id}", "").strip()
+            # Admin cleared the day completely (no times, no hours or 0):
+            # remove it so it doesn't print on the timesheet.
+            if (f"start_{entry.id}" in request.form and not start_raw and not end_raw
+                    and hours_raw in ("", "0", "0.0", "0.00")):
+                db.session.delete(entry)
+                removed.append(entry)
+                continue
             start_t = _parse_time(start_raw)
             end_t = _parse_time(end_raw)
             if start_t and end_t:
@@ -553,6 +561,9 @@ def packet_detail(packet_id):
                     pass
             if f"notes_{entry.id}" in request.form:
                 entry.notes = request.form.get(f"notes_{entry.id}", "").strip()[:300] or None
+
+        if removed:
+            entries = [e for e in entries if e not in removed]
 
         # Days with nothing logged yet (a weekend demob, a day the contractor
         # forgot): the admin can add them here, with a note for the PDF.
