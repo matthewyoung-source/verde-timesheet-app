@@ -37,7 +37,15 @@ def run_packets_now():
     night. Safe to press twice: weeks that already have a packet are skipped."""
     _require_admin()
     from scheduler_jobs import run_packets
-    result = run_packets(current_app._get_current_object(), source="manual")
+    week_of = None
+    raw = (request.form.get("week_of") or "").strip()
+    if raw:
+        try:
+            week_of = date.fromisoformat(raw)
+        except ValueError:
+            flash("That week date wasn't recognised.", "error")
+            return redirect(url_for("admin.dashboard"))
+    result = run_packets(current_app._get_current_object(), source="manual", week_of=week_of)
     flash(("Packets built. " if result.ok else "Packet run had problems: ") + result.message, "success" if result.ok else "error")
     return redirect(url_for("admin.dashboard"))
 

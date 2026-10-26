@@ -82,14 +82,21 @@ def _receipt_flowable(photo_path, max_w, max_h):
     hands ReportLab a clean JPEG. Returns None if the file can't be read, so
     a bad photo never brings the whole packet down."""
     try:
-        with PILImage.open(photo_path) as im:
-            im = ImageOps.exif_transpose(im)
+        with PILImage.open(photo_path) as src:
+            # draft() lets JPEGs decode at reduced size, so a 12MP phone
+            # photo never sits in memory at full resolution.
+            try:
+                src.draft("RGB", (1400, 1400))
+            except Exception:
+                pass
+            im = ImageOps.exif_transpose(src)
             if im.mode not in ("RGB", "L"):
                 im = im.convert("RGB")
-            im.thumbnail((1600, 1600))
+            im.thumbnail((1400, 1400))
             buf = io.BytesIO()
-            im.save(buf, "JPEG", quality=85)
+            im.save(buf, "JPEG", quality=80)
             w, h = im.size
+            del im
         buf.seek(0)
         scale = min(max_w / w, max_h / h, 1.0)
         img = RLImage(buf, width=w * scale, height=h * scale)

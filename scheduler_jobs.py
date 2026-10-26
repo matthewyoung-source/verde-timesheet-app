@@ -11,12 +11,16 @@ import notifications
 import packets
 
 
-def run_weekly_packet_job(app):
+def run_weekly_packet_job(app, week_of=None):
     """Runs every Sunday night: for every active assignment with at least
     one timesheet entry or expense logged this week, build the Verde packet
-    PDF and (if Xero is connected) create the matching draft invoice."""
+    PDF and (if Xero is connected) create the matching draft invoice.
+
+    week_of: any date inside an earlier week, to rebuild packets that a
+    failed run missed. Weeks that already have a packet are skipped."""
+    import gc
     with app.app_context():
-        monday, sunday = week_bounds(business_today())
+        monday, sunday = week_bounds(week_of or business_today())
         assignments = Assignment.query.filter_by(active=True).all()
         built, skipped, problems = 0, 0, []
 
@@ -44,6 +48,10 @@ def run_weekly_packet_job(app):
                 db.session.rollback()
                 logger.exception("Packet failed for %s", label)
                 problems.append(f"{label}: {type(exc).__name__}: {exc}")
+            finally:
+                # Receipt photos are big; free them before the next contractor
+                # so one heavy week can't run the server out of memory.
+                gc.collect()
 
         summary = f"{built} packet{'s' if built != 1 else ''} built for week of {monday:%b %-d}, {skipped} assignment{'s' if skipped != 1 else ''} with nothing logged."
         if problems:
@@ -169,8 +177,8 @@ def run_guarded(app, job_name, fn, source="scheduled"):
         return RunResult(run)
 
 
-def run_packets(app, source="scheduled"):
-    return run_guarded(app, "weekly_packets", lambda: run_weekly_packet_job(app), source=source)
+def run_packets(app, source="scheduled", week_of=None):
+    return run_guarded(app, "weekly_packets", lambda: run_weekly_packet_job(app, week_of=week_of), source=source)
 
 
 def run_reminders(app, source="scheduled"):
