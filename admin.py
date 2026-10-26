@@ -704,6 +704,31 @@ def generate_packet_now(assignment_id):
     return redirect(url_for("admin.packet_detail", packet_id=packet.id))
 
 
+@admin_bp.route("/assignments/<int:assignment_id>/start-packet", methods=["POST"])
+@login_required
+def start_packet_for_week(assignment_id):
+    """Admin only: open a packet for a week the contractor logged nothing in
+    (e.g. hours confirmed from the client's own records), so the days can be
+    filled in on the packet screen. Never overwrites an existing packet."""
+    _require_admin()
+    assignment = Assignment.query.get_or_404(assignment_id)
+    raw = (request.form.get("week_of") or "").strip()
+    try:
+        week_of = date.fromisoformat(raw) if raw else business_today()
+    except ValueError:
+        flash("That week date wasn't recognised.", "error")
+        return redirect(url_for("admin.dashboard"))
+    monday, sunday = week_bounds(week_of)
+    existing = WeeklyPacket.query.filter_by(assignment_id=assignment.id, week_start=monday).first()
+    if existing:
+        flash("That week already has a packet -- opened it for you.", "error")
+        return redirect(url_for("admin.packet_detail", packet_id=existing.id))
+    packet = packets.create_packet(assignment, monday, sunday)
+    db.session.commit()
+    flash("Empty packet started. Fill in the days below, then save.", "success")
+    return redirect(url_for("admin.packet_detail", packet_id=packet.id))
+
+
 @admin_bp.route("/reports")
 @login_required
 def reports():
