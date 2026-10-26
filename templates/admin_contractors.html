@@ -40,6 +40,8 @@
           <div class="btn-row">
             <form method="POST" action="{{ url_for('admin.generate_packet_now', assignment_id=a.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn secondary small" type="submit">Generate this week's packet</button></form>
+            <form method="POST" action="{{ url_for('admin.start_packet_for_week', assignment_id=a.id) }}" title="Opens an empty packet for a week with nothing logged, so you can enter the days yourself.">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="date" name="week_of" required style="font-size:12px; padding:3px 6px;"> <button class="btn secondary small" type="submit">Start packet for that week</button></form>
             <form method="POST" action="{{ url_for('admin.end_assignment', assignment_id=a.id) }}" onsubmit="return confirm('End this assignment? {{ c.name }} will no longer be able to log hours against it.');">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn danger small" type="submit">End assignment</button></form>
           </div>
