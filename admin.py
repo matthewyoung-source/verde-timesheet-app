@@ -597,6 +597,27 @@ def packet_detail(packet_id):
         if added:
             entries = sorted(entries + added, key=lambda e: e.work_date)
 
+        # Receipts the admin removed (ticked "Remove") or re-dated. A receipt
+        # removed here is deleted from the week (the photo file stays on disk);
+        # a receipt re-dated outside this week moves to that week's packet.
+        kept_expenses = []
+        for exp in packet_expenses:
+            if request.form.get(f"remove_{exp.id}"):
+                db.session.delete(exp)
+                continue
+            date_raw = request.form.get(f"date_{exp.id}", "").strip()
+            if date_raw:
+                try:
+                    new_date = datetime.strptime(date_raw, "%Y-%m-%d").date()
+                except ValueError:
+                    new_date = None
+                if new_date and new_date != exp.expense_date:
+                    exp.expense_date = new_date
+                    if not (packet.week_start <= new_date <= packet.week_end):
+                        continue  # moved to another week: out of this packet
+            kept_expenses.append(exp)
+        packet_expenses = sorted(kept_expenses, key=lambda x: x.expense_date)
+
         for exp in packet_expenses:
             amount_raw = request.form.get(f"amount_{exp.id}", "").strip()
             if amount_raw:
